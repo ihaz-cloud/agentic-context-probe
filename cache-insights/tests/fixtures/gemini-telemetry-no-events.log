@@ -1,0 +1,6 @@
+{
+    "body": "Some non-api event",
+    "attributes": {
+        "event.name": "gemini_cli.tool_call"
+    }
+}

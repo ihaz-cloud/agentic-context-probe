@@ -1,0 +1,4 @@
+{"type": "user", "message": {"role": "user", "content": "hello"}}
+{"type": "assistant", "message": {"role": "assistant", "content": "hi", "usage": {"input_tokens": 5, "output_tokens": 2, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0, "service_tier": "standard"}}}
+{"type": "user", "message": {"role": "user", "content": "tell me more"}}
+{"type": "assistant", "message": {"role": "assistant", "content": "more text", "usage": {"input_tokens": 3, "output_tokens": 12, "cache_creation_input_tokens": 100, "cache_read_input_tokens": 250, "cache_creation": {"ephemeral_5m_input_tokens": 100, "ephemeral_1h_input_tokens": 0}, "service_tier": "standard"}}}

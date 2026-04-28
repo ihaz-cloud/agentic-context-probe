@@ -1,0 +1,1 @@
+{"resourceLogs": [{"resource": {"attributes": [{"key": "service.name", "value": {"stringValue": "some_other_service"}}]}, "scopeLogs": [{"logRecords": [{"attributes": [{"key": "input_token_count", "value": {"stringValue": "1"}}, {"key": "cached_token_count", "value": {"intValue": "0"}}, {"key": "output_token_count", "value": {"stringValue": "1"}}]}]}]}]}

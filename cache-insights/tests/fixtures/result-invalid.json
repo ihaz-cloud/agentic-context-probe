@@ -1,0 +1,5 @@
+{
+  "test_id": "missing-required-fields",
+  "vendor": "openai",
+  "test_type": "cold_warm_pair"
+}

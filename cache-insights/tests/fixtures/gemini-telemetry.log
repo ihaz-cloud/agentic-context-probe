@@ -1,0 +1,35 @@
+{
+    "body": "API response",
+    "attributes": {
+        "event.name": "gemini_cli.api_response",
+        "input_token_count": 5000,
+        "output_token_count": 8,
+        "cached_content_token_count": 0,
+        "thoughts_token_count": 25,
+        "tool_token_count": 0,
+        "total_token_count": 5033,
+        "model": "gemini-3.1-pro-preview",
+        "prompt_id": "prompt-aaa"
+    }
+}
+{
+    "body": "Some other event",
+    "attributes": {
+        "event.name": "gemini_cli.tool_call",
+        "tool_name": "shell"
+    }
+}
+{
+    "body": "API response",
+    "attributes": {
+        "event.name": "gemini_cli.api_response",
+        "input_token_count": 5100,
+        "output_token_count": 4,
+        "cached_content_token_count": 4900,
+        "thoughts_token_count": 10,
+        "tool_token_count": 0,
+        "total_token_count": 10014,
+        "model": "gemini-3.1-pro-preview",
+        "prompt_id": "prompt-bbb"
+    }
+}
