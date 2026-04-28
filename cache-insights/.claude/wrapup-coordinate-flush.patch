@@ -35,6 +35,11 @@ This patch closes the gap by:
 
   1. Splitting step 1 into 1 (per-bead status) and 1b (coordinate status,
      conditional on any worked_beads entry having phase: coordinate).
+     1b also documents the rare missing-coordinate-file case: the hook
+     exits non-zero with "No coordination tracking for session ..." —
+     log a warning, mark metrics_written: true on the affected
+     worked_beads entries to keep idempotent reruns from looping, and
+     skip 6b.
   2. Adding a parallel coordinate orphan-handler in step 3.
   3. Splitting step 6 into 6a (per-bead segments — substantively
      unchanged from the current jq block) and 6b (coordinate segments
@@ -46,11 +51,17 @@ This patch closes the gap by:
   4. Updating step 7 (verify flush) to assert one record per
      (bead × coordinate-segment-start) when any coordinate entry exists.
 
+The new logic is strictly conditional on worked_beads having a
+`phase: coordinate` entry. Sessions that never invoked
+`start --coordinate` (single-bead sprints, ad-hoc work, tooling fixes)
+hit the same flush path as today — no behavior change.
+
 Tested against the cache-insights project: re-flushing the missing
 coordinate records (commit 23935a8 in the cache-insights repo) produced
 8 properly-shaped records matching what step 6b prescribes. Pre-existing
 per-bead records were unaffected (the flush logic remains idempotent on
-segment start-time + bead_id).
+segment start-time + bead_id). The full patch dry-runs cleanly via
+`patch -p1` against the current upstream wrapup.md.
 
 Reference: rules/workflow-execution.md "Coordinate Phase" — describes
 WRITING worked_beads entries with phase: coordinate but does not describe
@@ -58,12 +69,12 @@ FLUSHING them at wrapup time. Task 3c was the missing piece. The patch
 also references this section so future readers can trace the round-trip.
 
 ---
- templates/.claude/commands/wrapup.md | 71 +++++++++++++++++++++++++++++++++---
- 1 file changed, 65 insertions(+), 6 deletions(-)
+ templates/.claude/commands/wrapup.md | 73 +++++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 56 insertions(+), 5 deletions(-)
 
 --- a/templates/.claude/commands/wrapup.md
 +++ b/templates/.claude/commands/wrapup.md
-@@ -80,15 +80,22 @@
+@@ -80,15 +80,23 @@
  
  Review `.claude/tmp/{session_id}.json` and finalize token data:
  
@@ -73,6 +84,7 @@ also references this section so future readers can trace the round-trip.
 +1b. **Check coordinate tracking status** if any `worked_beads` entry has `phase: coordinate`:
 +   `.claude/hooks/token-tracking.sh status --coordinate --session <session_id> --json`
 +   Coordinate segments live in a SEPARATE file (`~/.claude/.token_tracking/coordinate.<session-id>.json`) and are NOT returned by per-bead status queries. Skipping this step silently drops the planning cost for every multi-bead sprint.
++   **If the hook exits non-zero with `No coordination tracking for session ...`** — the tracker recorded a coordinate phase but the coordinate file is missing (rare; deleted between tracking and wrapup). Log a warning in the wrapup report, mark `metrics_written: true` on each affected `worked_beads` entry to prevent flush retries on idempotent reruns, and skip step 6b. The data is unrecoverable.
  2. **If `active_phase` is null** — properly stopped. Proceed to step 4.
  3. **If `active_phase` is not null** — orphan. Run:
     `.claude/hooks/token-tracking.sh stop --bead <bead-id> --json`
@@ -89,7 +101,7 @@ also references this section so future readers can trace the round-trip.
     ```bash
     jq -n -c \
       --arg bead_id "..." \
-@@ -131,10 +138,53 @@
+@@ -131,10 +139,53 @@
     - `issue_size`: the bead's size label (`small`, `medium`, `large`, or `null` if unlabeled)
     - `origin`, `bead_created_at`, `priority`, `parent_epic`, `discovered_from`: read directly from the matching `worked_beads` entry in the session tracker (see `rules/workflow-execution.md` Session Tracker `worked_beads` Schema). Pass an empty string for `parent_epic` / `discovered_from` when the tracker entry is `null` — the jq expression maps `""` back to `null`.
     - `bead_closed`: `true` only if `bd close <id>` ran for this bead this session (final record per bead). False otherwise.
