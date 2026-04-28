@@ -7,3 +7,16 @@
 # OPENAI_ADMIN_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY etc.
 # See .claude/security.md "Secrets Management" for rotation policy.
 prd/config.env
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Generated outputs from the verification harness
+verify-local-sources-results.json
+
+# Local-only archive of superseded scripts and historical fixtures
+.archive/
+
+# Per-test result records (per architecture.md — flat JSON files)
+results/

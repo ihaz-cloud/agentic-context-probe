@@ -1,0 +1,21 @@
+# otel-collector-config.yaml
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: "0.0.0.0:4318"
+
+exporters:
+  file/traces:
+    path: /data/codex-traces.jsonl
+  file/logs:
+    path: /data/codex-logs.jsonl
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [file/traces]
+    logs:
+      receivers: [otlp]
+      exporters: [file/logs]

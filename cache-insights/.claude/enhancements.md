@@ -67,3 +67,90 @@ It does not operationalize the readiness rule from `rules/work-item-templates.md
 **Suggested fix:** Covered by the same patch as Entry 1. Adds: "If the source document lives in a directory with sibling docs (e.g. research.md, lessons_learned/, lexicon.prd.md), READ THOSE TOO. ... When sibling docs DISAGREE with the named source, do not silently pick one — surface the contradiction explicitly and, if beads are enabled, create a decision-type bead to resolve it."
 
 **Status:** [OPEN] — bundled into the same patch as Entry 1.
+
+---
+
+### 2026-04-28 — Beads claimed without enriching description first
+
+**Discovered while:** Running `bd lint` during `/wrapup` after closing 5 beads in one sprint (cws.4, cws.5, cws.6, cws.7, cws.8). All five flagged `⚠ Missing: ## Acceptance Criteria`. AC was logged via `bd comments add` close-out annotations instead of in the description body.
+
+**Gap:** `rules/workflow-execution.md` Claim/Execute checklist says "Verify Effort Forecast exists on the item" but doesn't explicitly require that the description contain the full template (Changes Needed, AC, etc.) before claiming. The first sprint of the session followed the right pattern (body-file updates before claim) but the second sprint shortcut to label-add + claim. The pattern drift wasn't caught until end-of-session lint.
+
+**Where it should live:** `.claude/rules/workflow-execution.md` Start Checklist.
+
+**Suggested fix:** Add a checklist item before "Read item description and capture priority/parent_epic/...":
+- [ ] Description passes `bd lint <id>` (no template warnings) — if not, body-file update before continuing
+
+This makes lint-clean a hard prerequisite, surfacing the gap immediately rather than at wrapup.
+
+**Status:** [OPEN]
+
+---
+
+### 2026-04-28 — Vendor API tokenizer quirks not captured in lexicon.prd.md
+
+**Discovered while:** Implementing cws.6 (nonce generator) and cws.4 (Codex parser). Two undocumented vendor quirks surfaced through trial+error:
+
+1. **OpenAI**: newer models (gpt-5+) reject `max_tokens` and require `max_completion_tokens`. Also: `max_*=1` triggers an "output limit reached" 400 even when only `usage.prompt_tokens` is needed; bumping to 16 resolves.
+2. **Codex CLI 0.122.0 OTel emission**: positive token counts arrive as `{"stringValue": "8808"}` while zero counts arrive as `{"intValue": "0"}`. Both contain string-encoded numbers regardless of the envelope key. Not in the OTLP spec — vendor-specific quirk.
+
+**Gap:** `prd/lexicon.prd.md` per-vendor reference doesn't capture either quirk. Future readers re-discover them.
+
+**Where it should live:** `prd/lexicon.prd.md` — per-vendor "API quirks" subsection per OpenAI and OpenAI/Codex CLI.
+
+**Suggested fix:** Add a "Known quirks" subsection to each vendor's lexicon entry. For Codex specifically, note the OTLP value-envelope inconsistency (positive=stringValue, zero=intValue) so the next parser author isn't surprised.
+
+**Status:** [OPEN]
+
+---
+
+### 2026-04-28 — Phase 1 ships without unit tests
+
+**Discovered while:** End-of-sprint `/wrapup` build verification. The Phase 1 modules (`cache_insights/parsers/*`, `cache_insights/nonce.py`, `cache_insights/tokenizers.py`, `cache_insights/driver/*`, `cache_insights/validate.py`) all have AC verified by inline `python3 << PY` scripts in the conversation transcript, but none of those checks are persisted as `tests/test_*.py` files. `pytest` is installed (9.0.2) but `pytest tests/` finds zero tests.
+
+**Gap:** No project-wide testing convention recorded in `.claude/rules/standards.md` or `.claude/rules/development-standards.md`. The bead descriptions (cws.3-8) named specific AC scripts but did not require those be saved as pytest cases.
+
+**Where it should live:** `.claude/rules/development-standards.md` § Testing Standards (currently empty placeholder), and a new bead to backfill `tests/` for Phase 1.
+
+**Suggested fix:** (a) Add a Testing standard: "Every module under `cache_insights/` must have a corresponding `tests/test_*.py` exercising the module's public surface. AC scripts written during a bead's test phase must be saved into `tests/` before the bead can close." (b) File a new bead: "Backfill unit tests for Phase 1 modules" — convert the 8 inline AC scripts into pytest cases.
+
+**Status:** [OPEN]
+
+---
+
+### 2026-04-28 — Effort forecasts consistently 2-6× under for Phase 1
+
+**Discovered while:** `/wrapup` review. Per-bead actuals vs forecast (output tokens):
+- cws.1: 10,646 actual vs 3,000 forecast (3.5×)
+- cws.2: 7,828 vs 1,300 (6.0×)
+- cws.3: 16,448 vs 4,700 (3.5×)
+- cws.4: 30,867 vs 6,000 (5.1×)
+- cws.5: 21,374 vs 7,500 (2.85×)
+- cws.6: 79,159 vs 12,000 (6.6×)
+- cws.7: 30,555 vs 14,500 (2.1×)
+- cws.8: 27,110 vs 5,500 (4.9×)
+- e85: 10,430 vs 2,000 (5.2×)
+
+Recurring delta cause: investigative scope expanding inside the bead — verifying field structure across multiple real samples, isolating vendor quirks (Codex stringValue/intValue, OpenAI max_completion_tokens), filing discovered defects, and confirming behavior end-to-end with real APIs. The implementation itself was generally on-budget; the verification phase blew out.
+
+**Gap:** `rules/work-item-templates.md` Effort Forecast template asks for plan/implement/test breakdown but doesn't explicitly budget for "investigative discovery" within the test phase. Rough multiplier of 2× was applied for the second sprint based on first-sprint observations and was directionally right (2.1-6.6× range, mean ~4.2×).
+
+**Where it should live:** `rules/work-item-templates.md` Effort Forecast contract.
+
+**Suggested fix:** When the bead involves real-data verification (parsers reading vendor logs, API integrations, tmux primitives), add a `Discover` phase to the forecast distinct from `Test`. Discover covers: field-structure sampling, vendor quirk isolation, manual cross-checks with real data. Empirically, Discover ≈ 0.5-1.5× the implement budget for vendor-integration beads.
+
+**Status:** [OPEN]
+
+---
+
+### 2026-04-28 — Session tracker schema doesn't auto-populate plan/implement/test entries for multi-bead sprints
+
+**Discovered while:** `/wrapup` Wrapup 3c (token tracking flush). The 5-bead sprint (cws.4, cws.5, cws.6, cws.7, cws.8) had coordinate-phase entries written to the session tracker `worked_beads`, but plan/implement/test entries were NOT pre-populated when individual beads were claimed. The hook tracked the segments correctly, but the flush script needed a hardcoded `default_meta` lookup table to fill in metadata (issue_type, size, cynefin, forecast, etc.) for those segments. This worked but is fragile.
+
+**Gap:** `rules/workflow-execution.md` Session Tracker `worked_beads` Schema doesn't say WHO is responsible for appending per-phase entries when transitioning phases. Currently it falls on the assistant to manually append; this is easy to skip in a fast multi-bead sprint.
+
+**Where it should live:** `.claude/rules/workflow-execution.md` Phase Transitions section, OR `.claude/hooks/token-tracking.sh` could write entries directly.
+
+**Suggested fix:** Either (a) make the token-tracking.sh hook responsible for appending a `worked_beads` entry on `start --bead --phase`, populating from current bead state via `bd show <id>`, OR (b) add a `bd-snapshot.sh` helper invoked from each phase-transition that writes the entry. Option (a) is cleaner — the hook already has the bead_id and phase; reading bd metadata once on start is cheap.
+
+**Status:** [OPEN]

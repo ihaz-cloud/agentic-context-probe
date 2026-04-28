@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ihaz/cache-insights/schemas/result.schema.json",
+  "title": "Cache Insights Per-Test Result",
+  "description": "Schema for per-test result records written to results/. Mirrors DESIGN.prd.md §6.1.",
+  "type": "object",
+  "required": [
+    "test_id",
+    "vendor",
+    "test_type",
+    "model",
+    "nonce",
+    "nonce_prefix_tokens",
+    "total_payload_tokens",
+    "requests",
+    "verdict"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "test_id": {
+      "type": "string",
+      "description": "Unique identifier, convention: {vendor}-{test_type}-{ISO date}-{slug}",
+      "minLength": 1
+    },
+    "vendor": {
+      "type": "string",
+      "enum": ["openai", "anthropic", "google"]
+    },
+    "test_type": {
+      "type": "string",
+      "description": "Test scenario from §4.1 (cache mechanics) or §4.2 (primitive validation).",
+      "enum": [
+        "cold_warm_pair",
+        "ttl_curve",
+        "prefix_warmup",
+        "suffix_variation",
+        "content_growth",
+        "efficiency",
+        "negative_control",
+        "fork",
+        "rewind"
+      ]
+    },
+    "model": {
+      "type": "string",
+      "description": "Vendor-qualified model identifier as reported by the CLI / API.",
+      "minLength": 1
+    },
+    "nonce": {
+      "type": "string",
+      "description": "Per-test nonce (≥4096 tokens per §3) recorded verbatim for contamination tracing.",
+      "minLength": 1
+    },
+    "nonce_prefix_tokens": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "total_payload_tokens": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "requests": {
+      "type": "array",
+      "minItems": 0,
+      "items": { "$ref": "#/$defs/request" }
+    },
+    "verdict": {
+      "type": "string",
+      "description": "Test outcome. Common values: cache_hit_confirmed, cache_miss, byte_identity_preserved, byte_identity_broken, contaminated, error, skipped. Open enum — additional verdict strings allowed for new test types.",
+      "minLength": 1
+    },
+    "hit_ratio": {
+      "type": ["number", "null"],
+      "description": "Observed cache hit ratio for the test, when applicable.",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "expected_cache_ratio": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "efficiency_delta": {
+      "type": ["number", "null"],
+      "description": "Observed - expected hit ratio."
+    },
+    "actual_wait_seconds": {
+      "type": ["number", "null"],
+      "description": "For TTL tests: actual sleep duration between requests."
+    },
+    "contaminated": {
+      "type": "boolean",
+      "description": "True if the first 'cold' request reported nonzero cached tokens (§4.1 invariant). Per DESIGN §8, contaminated results are excluded from aggregates."
+    },
+    "error": {
+      "type": ["string", "null"],
+      "description": "Error description if the test could not produce valid measurements (per DESIGN §8). Presence does not preclude partial 'requests' data."
+    },
+    "notes": {
+      "type": "string"
+    },
+    "timestamp_started": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "timestamp_completed": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "cli_version": {
+      "type": "string",
+      "description": "Vendor CLI version under test (per DESIGN §5.3 prerequisite pinning)."
+    }
+  },
+  "$defs": {
+    "request": {
+      "type": "object",
+      "required": [
+        "seq",
+        "label",
+        "timestamp",
+        "input_tokens",
+        "cached_tokens",
+        "output_tokens"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "label": {
+          "type": "string",
+          "description": "Human-readable label, e.g. 'cold', 'warm', 'pre-fork', 'post-fork'.",
+          "minLength": 1
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "input_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cached_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "output_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "latency_ms": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "raw_usage": {
+          "type": "object",
+          "description": "Verbatim usage block from the local attribution source (Claude JSONL, Gemini OTel, Codex OTel) for traceability."
+        },
+        "cache_creation_input_tokens": {
+          "type": ["integer", "null"],
+          "description": "Anthropic-only: tokens written into the cache on this request."
+        },
+        "cache_tier": {
+          "type": ["string", "null"],
+          "description": "Anthropic-only: 'ephemeral_5m' or 'ephemeral_1h'."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "test_id": "openai-cold-warm-20260409-sample",
+  "vendor": "openai",
+  "test_type": "cold_warm_pair",
+  "model": "gpt-5.4",
+  "nonce": "8a3f2c19-4b0d-9e7a-c1f0-deadbeefcafe",
+  "nonce_prefix_tokens": 128,
+  "total_payload_tokens": 5120,
+  "requests": [
+    {
+      "seq": 0,
+      "label": "cold",
+      "timestamp": "2026-04-09T14:00:00Z",
+      "input_tokens": 5120,
+      "cached_tokens": 0,
+      "output_tokens": 5,
+      "latency_ms": 1230,
+      "raw_usage": {}
+    },
+    {
+      "seq": 1,
+      "label": "warm",
+      "timestamp": "2026-04-09T14:00:02Z",
+      "input_tokens": 5120,
+      "cached_tokens": 4992,
+      "output_tokens": 5,
+      "latency_ms": 890,
+      "raw_usage": {}
+    }
+  ],
+  "verdict": "cache_hit_confirmed",
+  "hit_ratio": 0.975,
+  "notes": ""
+}

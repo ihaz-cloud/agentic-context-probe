@@ -71,6 +71,7 @@ Before adding a new library, check this table — the problem may already be sol
 | **Runtime (Gemini)** | Node.js | 22.2.0 | Required by Gemini CLI |
 | **Pricing config** | TOML | — | `pricing.toml` keyed `<vendor>.<model>`; operator-updatable |
 | **Result format** | JSON | — | Schema in §6.1 of `prd/DESIGN.prd.md`; vendor/test_type/verdict at top level for human-readability |
+| **Schema validation** | jsonschema | >=4.10 (Python) | `cache_insights/validate.py` validates results against `cache_insights/schemas/result.schema.json` (draft 2020-12) |
 | **Database** | None | — | Results are flat JSON files; no persistence layer needed |
 
 > **Update strategy:** CLI versions and pricing are pinned. Re-verify `pricing.toml` against vendor docs before each cost-forecast run; rates change without notice. CLI version bumps invalidate cached prefix-warmup results — re-run warmup when the vendor, model, or CLI version changes.
@@ -190,15 +191,34 @@ cache-insights/
 │   ├── pricing.toml             # Per-vendor per-model pricing (operator-updatable)
 │   ├── config.env               # Model defaults, vendor config, secrets
 │   ├── otel-collector-config.yaml
-│   └── lessons_learned/         # Documented assumption changes
+│   └── lessons_learned/         # Domain/product lessons (vendor APIs, cache mechanics)
+├── cache_insights/              # Python package (Phase 1 building blocks)
+│   ├── _config.py               # config.env loader (lru_cached)
+│   ├── validate.py              # jsonschema wrapper for §6.1 result records
+│   ├── nonce.py                 # Per-test nonce generator (≥4096 tokens, deterministic)
+│   ├── tokenizers.py            # Per-vendor count_tokens (OpenAI/Anthropic/Google APIs)
+│   ├── parsers/                 # Local-source attribution parsers
+│   │   ├── _io.py               # iter_pretty_json_records + iter_jsonl_records helpers
+│   │   ├── claude.py            # ~/.claude/projects/<slug>/<uuid>.jsonl
+│   │   ├── codex.py             # /tmp/otel-data/codex-logs.jsonl (OTLP envelope)
+│   │   └── gemini.py            # ~/.gemini/telemetry.log (pretty-printed JSON)
+│   ├── driver/                  # tmux-based CLI orchestration
+│   │   ├── dispatch.py          # VENDOR_LAUNCH dict + LaunchSpec
+│   │   └── tmux.py              # TmuxSession + driver() context manager
+│   └── schemas/
+│       └── result.schema.json   # §6.1 per-test result schema (draft 2020-12)
+├── tests/                       # pytest test suite
+│   └── fixtures/                # Sample records for parser + validator tests
 ├── verify-local-sources.py      # Confirms each vendor's local attribution wiring
+├── requirements.txt             # Python deps (jsonschema)
 ├── results/                     # Structured JSON outputs (gitignored)
 ├── README.md
 └── .claude/                     # Claude Code context
     ├── architecture.md          # This file
     ├── data-model.md            # Result + pricing schemas
     ├── security.md              # Secrets, sensitivity, vendor auth
-    └── tests.md                 # Verification strategy
+    ├── tests.md                 # Verification strategy
+    └── lessons_learned/         # Process/meta lessons (how to work on the project)
 ```
 
 ---

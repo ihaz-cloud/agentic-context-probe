@@ -31,11 +31,51 @@ template_entry:
   commits: ["abc1234", "def5678"]
 
 entries:
-  - version: "0.1.0"
-    date: "2026-04-27"
-    branch: "main"
-    focus: [infrastructure, documentation]
-    summary: "Bootstrap Cache Insights project — populate .claude/ templates from PRD, decompose work into 30 beads across 3 epics + 1 cross-cutting decision."
+  - version: "0.2.0"
+    date: "2026-04-28"
+    branch: "feature/work-20260427-bootstrap"
+    focus: [feature, infrastructure]
+    summary: "Phase 1 complete — local-source parsers, nonce generator, tmux driver, and §6.1 result schema. Plus P0 decision e85 resolved (CLI-only path)."
+    beads:
+      - cache-insights-e85
+      - cache-insights-cws
+      - cache-insights-cws.1
+      - cache-insights-cws.2
+      - cache-insights-cws.3
+      - cache-insights-cws.4
+      - cache-insights-cws.5
+      - cache-insights-cws.6
+      - cache-insights-cws.7
+      - cache-insights-cws.8
+      - cache-insights-kyg
+      - cache-insights-a7b
+    epic_progress: "cache-insights-cws 11% → 100% (auto-closed)"
+    backend:
+      - "added: cache_insights/ Python package — top-level + parsers/ + driver/ + schemas/ subpackages"
+      - "added: cache_insights/parsers/_io.py — iter_pretty_json_records (raw_decode loop) + iter_jsonl_records helpers"
+      - "added: cache_insights/parsers/claude.py — parse_last_turn(jsonl_path, session_uuid) for Claude session JSONL"
+      - "added: cache_insights/parsers/gemini.py — parse_last_turn(log_path, prompt_id) filters event.name == gemini_cli.api_response"
+      - "added: cache_insights/parsers/codex.py — walks OTLP envelope, handles Codex stringValue/intValue quirk via INT_COERCE_FIELDS"
+      - "added: cache_insights/tokenizers.py — count_tokens_{openai,anthropic,google} + estimate_tokens heuristic; OpenAI handles max_tokens vs max_completion_tokens model split"
+      - "added: cache_insights/nonce.py — Nonce dataclass + generate_nonce(vendor, model, min_tokens, seed) with deterministic seeding, heuristic-driven growth, API verification, sha256 cache"
+      - "added: cache_insights/driver/dispatch.py — VENDOR_LAUNCH dict + LaunchSpec dataclass + per-vendor completion_source/check factories"
+      - "added: cache_insights/driver/tmux.py — TmuxSession (launch/send_prompt/wait_for_completion/teardown) + driver() context manager + TmuxError/CompletionTimeout"
+      - "added: cache_insights/validate.py — load_schema (lru_cached) + validate_result(record) using jsonschema"
+      - "added: cache_insights/_config.py — load_env_var(name) reads from prd/config.env via bash; lru_cached"
+    infra:
+      - "added: requirements.txt — jsonschema>=4.10"
+      - "added: cache_insights/schemas/result.schema.json — JSON Schema draft 2020-12 mirroring DESIGN §6.1 (vendor enum, test_type enum across §4.1+§4.2, additionalProperties: false)"
+      - "added: tests/fixtures/result-cold-warm.json — DESIGN §6.1 example as canonical fixture"
+      - "added: tests/fixtures/nonce-cache.json — empty content-hash → token_count cache"
+      - "added: Docker OTel collector running on :4318 (codex-otel-collector) writing to /tmp/otel-data/codex-logs.jsonl"
+    docs:
+      - "added: .claude/lessons_learned/ — new folder for process/meta lessons (vs prd/lessons_learned/ which holds product/domain lessons)"
+      - "added: .claude/lessons_learned/README.md — distinguishes process from product lessons, file format template"
+      - "added: .claude/lessons_learned/verify-lessons-against-design.md — process lesson from e85: verify lessons_learned conclusions against current DESIGN before treating them as authoritative"
+      - "changed: prd/lessons_learned/cli-vs-direct-api.md — annotated as Status: Superseded with rationale (DESIGN §4.1.2 prefix-warmup baseline addresses the byte-control concern)"
+      - "added: 5 new entries to .claude/enhancements.md (claim-without-enrichment lint warnings, vendor API quirks, no unit tests, forecast accuracy 2-6× under, session tracker auto-population gap)"
+    tests: "All AC verified inline; no tests/test_*.py files yet — backfill candidate logged in enhancements.md"
+    commits: []
     beads:
       - cache-insights-cws
       - cache-insights-0to
