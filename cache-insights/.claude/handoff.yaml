@@ -30,6 +30,52 @@ template_entry:
         implementation: {output: 0, forecast: 0, turns: 0}
 
 entries:
+  - date: "2026-04-28 06:00 UTC"
+    branch: "feature/work-20260427-bootstrap"
+    focus: [feature, infrastructure]
+    completed:
+      - "cache-insights-e85: P0 decision resolved — §4.1 cache mechanics tests stay CLI-driven (DESIGN as written); prd/lessons_learned/cli-vs-direct-api.md annotated as Status: Superseded with rationale; new process lesson at .claude/lessons_learned/verify-lessons-against-design.md"
+      - "cache-insights-cws.1: Codex OTel collector — Docker container running on :4318, real Codex emission verified writing to /tmp/otel-data/codex-logs.jsonl with all token fields"
+      - "cache-insights-cws.2: Gemini telemetry verified — settings.json already correct, telemetry.log populated with input_token_count + cached_content_token_count + 6 other fields"
+      - "cache-insights-cws.3: cache_insights/parsers/claude.py — parse_last_turn(jsonl_path, session_uuid) reading ~/.claude/projects/<slug>/<uuid>.jsonl"
+      - "cache-insights-cws.4: cache_insights/parsers/codex.py — walks OTLP envelope, handles Codex 0.122.0 stringValue/intValue quirk via INT_COERCE_FIELDS"
+      - "cache-insights-cws.5: cache_insights/parsers/gemini.py — uses iter_pretty_json_records (raw_decode loop) to handle multi-line JSON; filters event.name == gemini_cli.api_response"
+      - "cache-insights-cws.6: cache_insights/nonce.py + cache_insights/tokenizers.py — Nonce dataclass + generate_nonce(vendor, model, min_tokens, seed); per-vendor count_tokens APIs (Anthropic + Google free, OpenAI via chat/completions usage.prompt_tokens with max_tokens vs max_completion_tokens fallback); sha256 cache; deterministic seeding; graceful fallback to heuristic when key missing"
+      - "cache-insights-cws.7: cache_insights/driver/{tmux.py,dispatch.py} — TmuxSession (launch/send_prompt/wait_for_completion/teardown) + driver() context manager; load-buffer + paste-buffer + Enter for prompt delivery; file-creation polling using cws.3/4/5 parsers as completion predicate; single VENDOR_LAUNCH dispatch dict"
+      - "cache-insights-cws.8: cache_insights/schemas/result.schema.json + cache_insights/validate.py — JSON Schema draft 2020-12 mirroring DESIGN §6.1 with vendor enum, test_type enum across §4.1+§4.2, additionalProperties: false; jsonschema>=4.10 added to requirements.txt"
+      - "cache-insights-cws (epic): auto-closed when all 8 children closed"
+      - "Phase 1 docs: .claude/lessons_learned/ folder created (process/meta lessons distinct from prd/lessons_learned/ which holds product/domain lessons); README.md explains the split"
+      - "Bootstrap-era files committed: prd/ (DESIGN.prd.md + lexicon + research + pricing.toml + lessons_learned), README.md, .github/PULL_REQUEST_TEMPLATE.md, verify-local-sources.py — these were authored during bootstrap but never committed until this session"
+      - ".gitignore extended: __pycache__/, *.pyc, verify-local-sources-results.json, .archive/, results/"
+    discovered:
+      - "cache-insights-kyg (P2 bug, discovered-from cws.2): verify-local-sources.py read_gemini_telemetry parses telemetry.log as JSONL but file is pretty-printed multi-line JSON; use cache_insights.parsers._io.iter_pretty_json_records to fix"
+      - "cache-insights-a7b (P2 bug, discovered-from cws.1): verify-local-sources.py find_codex_otel_file looks under ~/.codex/ but the OTel collector writes to /tmp/otel-data/codex-logs.jsonl; can refactor to use cache_insights.parsers.codex.parse_last_turn"
+      - ".claude/enhancements.md +5 entries: claim-without-enrichment lint warnings, vendor API tokenizer quirks (OpenAI max_tokens vs max_completion_tokens, Codex stringValue/intValue), no unit tests in tests/, effort forecasts running 2-6× under for Phase 1 vendor-integration beads, session tracker schema doesn't auto-populate plan/implement/test entries for multi-bead sprints"
+    in_progress: []
+    blockers:
+      - "Phase 2 (cache-insights-0to.*) and Phase 3 (cache-insights-rk8.*): not blocked anymore — all upstream Phase 1 beads + the e85 decision are resolved"
+    next_steps:
+      - "Open PR for the Phase 1 commit (323fbdc) — branch is pushed; PR template already in .github/"
+      - "Backfill unit tests for Phase 1 modules: tests/parsers/test_{claude,gemini,codex}.py + tests/test_validate.py + tests/test_nonce.py + tests/test_tokenizers.py + tests/driver/test_{dispatch,tmux}.py — convert the inline AC scripts from this session's transcript. Logged as gap in enhancements.md; new bead to file."
+      - "cache-insights-kyg + cache-insights-a7b: fix the two verify-local-sources.py defects (S each)"
+      - "cache-insights-0to.1: §4.1 cold/warm pair test driver — first Phase 2 bead, now unblocked"
+      - "Stop Docker collector when not testing: docker stop codex-otel-collector"
+      - "Rotate live OpenAI API key in prd/config.env (still flagged from prior handoff)"
+    epic_progress: "cws 11% → 100% (auto-closed); 0to 8% → 8%; rk8 9% → 9%"
+    commits: ["323fbdc"]
+    token_usage:
+      metrics_file: ".claude/metrics.jsonl"
+      beads_tracked:
+        - "cache-insights-e85"
+        - "cache-insights-cws.1"
+        - "cache-insights-cws.2"
+        - "cache-insights-cws.3"
+        - "cache-insights-cws.4"
+        - "cache-insights-cws.5"
+        - "cache-insights-cws.6"
+        - "cache-insights-cws.7"
+        - "cache-insights-cws.8"
+
   - date: "2026-04-27 21:30 UTC"
     branch: "feature/work-20260427-bootstrap"
     focus: [infrastructure, documentation]
