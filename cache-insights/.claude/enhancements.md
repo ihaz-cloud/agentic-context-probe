@@ -154,3 +154,24 @@ Recurring delta cause: investigative scope expanding inside the bead — verifyi
 **Suggested fix:** Either (a) make the token-tracking.sh hook responsible for appending a `worked_beads` entry on `start --bead --phase`, populating from current bead state via `bd show <id>`, OR (b) add a `bd-snapshot.sh` helper invoked from each phase-transition that writes the entry. Option (a) is cleaner — the hook already has the bead_id and phase; reading bd metadata once on start is cheap.
 
 **Status:** [OPEN]
+
+---
+
+### 2026-04-28 — /leroy startup could surface API key + Docker state
+
+**Discovered while:** Session startup ran the env health checks but didn't reveal two things that became material later:
+1. `prd/config.env` API key population state — only `OPENAI_API_KEY` was populated; `ANTHROPIC_API_KEY` and `GEMINI_API_KEY` were empty. This affected cws.6 (nonce generator verification path) — couldn't fully verify Anthropic/Google tokenizers.
+2. The Docker OTel collector wasn't running at startup but became required for cws.1 verification.
+
+**Gap:** `/leroy` startup checks the env table from `architecture.md` but doesn't summarize **which vendors are fully wired vs partially wired**. The user has to discover incremental gaps as work proceeds.
+
+**Where it should live:** `.claude/architecture.md` Environment Health Checks could include per-vendor "Ready for: [tokenization | parser-only | full E2E]" status derived from cross-checking key + telemetry-config + log-presence.
+
+**Suggested fix:** Add a derived "Vendor readiness" section after the table:
+- OpenAI: API key ✓, Codex CLI ✓, OTel config ✓, OTel collector running [Y/N], collector data flowing [Y/N] → Ready for: [tokenization, parser, E2E]
+- Anthropic: API key [Y/N], CLI ✓, JSONL dir ✓ → Ready for: [parser, E2E if key]
+- Google: API key [Y/N], CLI ✓, telemetry ✓ → Ready for: [parser, E2E if key]
+
+Optionally add a one-shot script `verify-readiness.py` that prints the matrix.
+
+**Status:** [OPEN]

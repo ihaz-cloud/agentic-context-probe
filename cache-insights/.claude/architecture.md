@@ -92,18 +92,26 @@ Before adding a new library, check this table — the problem may already be sol
 ### Local Development
 
 ```bash
-# 1. Verify local attribution sources are wired up per vendor
+# 1. Install Python dependencies
+pip install -r requirements.txt   # jsonschema>=4.10
+
+# 2. Verify local attribution sources are wired up per vendor
 python3 verify-local-sources.py
 
-# 2. Start the OTel collector for Codex (in a separate terminal)
-mkdir -p /tmp/otel-data && touch /tmp/otel-data/codex-logs.jsonl && chmod 666 /tmp/otel-data/codex-logs.jsonl
-docker run --rm \
-  -v $(pwd)/otel-collector-config.yaml:/etc/otelcol/config.yaml \
+# 3. Start the OTel collector for Codex (background, named container)
+mkdir -p /tmp/otel-data && touch /tmp/otel-data/codex-logs.jsonl /tmp/otel-data/codex-traces.jsonl
+chmod 666 /tmp/otel-data/*.jsonl
+docker run --rm -d --name codex-otel-collector \
+  -v $(pwd)/prd/otel-collector-config.yaml:/etc/otelcol/config.yaml \
   -v /tmp/otel-data:/data \
   -p 4318:4318 \
-  otel/opentelemetry-collector
+  otel/opentelemetry-collector \
+  --config /etc/otelcol/config.yaml
 
-# 3. Run the cache test suite (commands TBD — implementation pending)
+# Stop the collector when done:
+#   docker stop codex-otel-collector
+
+# 4. Run the cache test suite (commands TBD — implementation pending)
 # Expected operator workflows (see DESIGN.prd.md §5):
 #   - Run all §4.1 tests for one vendor
 #   - Run a single §4.1 test type across all vendors
@@ -123,15 +131,20 @@ Used by `/leroy` and `/gogogo` to verify the dev environment is ready.
 |---------|--------------|----------|
 | Python | `python3 --version` | `Python 3.12.3` |
 | tmux | `tmux -V` | `tmux 3.x` |
+| Docker | `docker --version` | `Docker version 28.x` (or any recent) |
 | Codex CLI | `codex --version` | `codex-cli 0.122.0` |
-| Claude Code | `claude --version` | `2.1.116` |
+| Claude Code | `claude --version` | `2.1.116` (drift to 2.1.121 acceptable) |
 | Gemini CLI | `gemini --version` | `0.38.2` |
 | Node.js | `node --version` | `v22.2.0` |
-| OTel collector | `curl -sf http://localhost:4318/v1/traces -X POST -H 'Content-Type: application/json' -d '{}' >/dev/null && echo "running"` | `running` |
+| OTel collector listening | `curl -sf http://localhost:4318/v1/traces -X POST -H 'Content-Type: application/json' -d '{}' >/dev/null && echo "running"` | `running` |
+| OTel collector container | `docker ps --filter name=codex-otel-collector --format "{{.Names}}"` | `codex-otel-collector` |
+| OTel data dir | `test -d /tmp/otel-data && echo "exists"` | `exists` |
 | Codex OTel config | `grep -q 'otlp-http' ~/.codex/config.toml && echo "configured"` | `configured` |
 | Gemini telemetry | `jq -e '.telemetry.enabled == true' ~/.gemini/settings.json >/dev/null && echo "enabled"` | `enabled` |
 | Claude JSONL dir | `test -d ~/.claude/projects && echo "exists"` | `exists` |
 | Pricing table | `test -f prd/pricing.toml && echo "exists"` | `exists` |
+| Result schema | `test -f cache_insights/schemas/result.schema.json && echo "exists"` | `exists` |
+| Python deps | `python3 -c "import jsonschema, cache_insights.parsers.claude, cache_insights.driver.tmux; print('ok')"` | `ok` |
 
 ---
 
