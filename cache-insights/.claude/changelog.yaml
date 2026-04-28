@@ -31,6 +31,31 @@ template_entry:
   commits: ["abc1234", "def5678"]
 
 entries:
+  - version: "0.3.0"
+    date: "2026-04-28"
+    branch: "feature/work-20260427-bootstrap"
+    focus: [feature, bugfix, infrastructure]
+    summary: "verify-local-sources.py aligned with Phase 1 parsers; Phase 1 unit-test backfill (63 tests); §4.1 cold/warm pair test driver landed (Phase 2 foundation)."
+    beads:
+      - cache-insights-a7b
+      - cache-insights-kyg
+      - cache-insights-ozg
+      - cache-insights-0to.1
+    epic_progress: "cache-insights-0to 8% → 16%"
+    backend:
+      - "added: cache_insights/tests_runner/cold_warm.py — §4.1 cold/warm pair test driver with verdict logic (cache_hit_confirmed | cache_miss | contaminated | error)"
+      - "added: cache_insights/tests_runner/_result.py — §6.1 result builder + per-vendor cached-tokens normalization (Anthropic cache_read_input_tokens → canonical cached_tokens)"
+      - "fixed: verify-local-sources.py find_codex_otel_file now starts from /tmp/otel-data/codex-logs.jsonl (canonical OTel collector path per DESIGN.prd.md §5.3)"
+      - "fixed: verify-local-sources.py read_gemini_telemetry replaced with cache_insights.parsers.gemini.parse_last_turn (pretty-printed JSON, not JSONL)"
+      - "changed: verify-local-sources.py CODEX/GEMINI sections now report per-field ✓/✗ for input/cached/output via the Phase 1 parsers"
+    infra:
+      - "added: tests/conftest.py prepends project root to sys.path so cache_insights imports cleanly without an installed package"
+    docs:
+      - "added: cache-insights-0to.1 promoted from triage:backlog stub to triage:ready full feature spec (acceptance criteria, file manifest, per-phase Effort Forecast, cynefin:complicated)"
+      - "added: enhancements.md entries for bd label add multi-arg quirk and token-tracking flush count-mismatch handling"
+    tests: "63 new (Phase 1 backfill) + 8 new (cold/warm verdict logic) = 71 total passing"
+    commits: ["beb50c5", "0f4ace0", "8ba7d80"]
+
   - version: "0.2.0"
     date: "2026-04-28"
     branch: "feature/work-20260427-bootstrap"

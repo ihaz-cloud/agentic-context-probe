@@ -114,7 +114,7 @@ This makes lint-clean a hard prerequisite, surfacing the gap immediately rather 
 
 **Suggested fix:** (a) Add a Testing standard: "Every module under `cache_insights/` must have a corresponding `tests/test_*.py` exercising the module's public surface. AC scripts written during a bead's test phase must be saved into `tests/` before the bead can close." (b) File a new bead: "Backfill unit tests for Phase 1 modules" — convert the 8 inline AC scripts into pytest cases.
 
-**Status:** [OPEN]
+**Status:** [RESOLVED] — `cache-insights-ozg` (filed and closed this session) added 63 unit tests covering all 8 Phase 1 modules. Suggested fix (a) — Testing standard in development-standards.md — still OPEN but no longer load-bearing now that the convention is established by code precedent.
 
 ---
 
@@ -189,4 +189,32 @@ Optionally add a one-shot script `verify-readiness.py` that prints the matrix.
 **Suggested fix:** Option (a) — add a substep: "Query coordinate segments: `token-tracking.sh status --coordinate --session <sid> --json`. For each segment, write one metrics record per bead in the segment's scope (set phase: coordinate, beads_in_scope: <list>, allocation_method: equal_split, full segment cost on each record — analytical queries divide by len(beads_in_scope) at read time)." This keeps the hook simple and the flush logic explicit.
 
 **Status:** [OPEN] — backfilled the missing 8 records this session via a one-off flush-coordinate.py. Patch drafted at `.claude/wrapup-coordinate-flush.patch` and verified to apply cleanly via `patch -p1` against `templates/.claude/commands/wrapup.md`. Hand to the vibe-md-templates owner alongside `.claude/bootstrap-prompt-deps.patch`.
+
+---
+
+### 2026-04-28 — `bd label add` silently mis-parses multi-label arg lists
+
+**Discovered while:** Promoting `cache-insights-0to.1` from `triage:backlog` to `triage:ready`. Tried `bd label add cache-insights-0to.1 "cynefin:complicated" "layer:backend" "persona:end-user" "size:medium" "triage:ready"` — only the FIRST label (`cynefin:complicated`) was added. The remaining colon-separated strings were interpreted as additional ISSUE IDs to apply that label to, producing errors like "Error resolving persona:end-user: no issue found matching ...".
+
+**Gap:** `bd label add` accepts `<bead-id> <label>` plus arbitrary additional positional args, which it treats as more bead IDs (multi-target apply mode). Colon characters in label names (a project convention — `cynefin:*`, `layer:*`, `persona:*`, `size:*`, `triage:*`) collide with bead-ID syntax and the CLI cannot disambiguate. No warning is emitted; partial success is silent.
+
+**Where it should live:** Either upstream `bd` CLI (treat `<key>:<value>` strings unambiguously as labels when they don't match an existing bead ID), or a project convention note in `rules/workflow-execution.md` recommending one-label-at-a-time invocation.
+
+**Suggested fix:** Document the constraint in `rules/workflow-execution.md` (one `bd label add` call per label) AND/OR write a small wrapper that detects the colon-namespaced style and loops. Workaround used this session: invoke `bd label add` four times in sequence.
+
+**Status:** [OPEN]
+
+---
+
+### 2026-04-28 — Token-tracking flush handles uneven phase counts poorly
+
+**Discovered while:** Wrapup 3c flush for `cache-insights-0to.1`. The bead exercised: plan(spec) → coordinate → plan(impl-claim) → implement → test → fix → test (post-fix) — six segments after spec phase. The session-tracker `worked_beads` array had only five non-coord entries (I forgot to append the final post-fix test entry when the bead closed). The flush script keyed off `min(len(segments), len(tracker_entries))` and dropped the final segment, leaving a `bead_closed: true` flag on the wrong (fix) record. Manual append of the missing record + bead_closed correction was required.
+
+**Gap:** Two reinforcing issues: (1) The `rules/workflow-execution.md` end-checklist says "Set `bead_closed: true` on the final worked_beads entry for this item" but is easy to skip when test→fix→test iterations add segments after the previous "final" entry was already written. (2) The flush script in `templates/.claude/commands/wrapup.md` (Wrapup 3c) doesn't detect the segment/tracker count mismatch — it silently truncates. This is a continuation of the existing entry "Session tracker schema doesn't auto-populate plan/implement/test entries" — the manual-append model is the root cause.
+
+**Where it should live:** `.claude/hooks/token-tracking.sh` (auto-append a worked_beads entry on every `start --bead --phase` call); `.claude/rules/workflow-execution.md` Wrapup 3c (warn-on-mismatch instead of silent truncate).
+
+**Suggested fix:** (a) Hook-side: extend `token-tracking.sh start --bead` to read the session tracker and auto-append a `worked_beads` entry with metadata pulled from `bd show <id>`. Eliminates the manual-append step entirely. (b) Flush-side: when len(segments) != len(tracker_entries), error out with a clear message rather than truncate. The assistant must reconcile before continuing.
+
+**Status:** [OPEN]
 

@@ -218,9 +218,16 @@ cache-insights/
 │   ├── driver/                  # tmux-based CLI orchestration
 │   │   ├── dispatch.py          # VENDOR_LAUNCH dict + LaunchSpec
 │   │   └── tmux.py              # TmuxSession + driver() context manager
+│   ├── tests_runner/            # Phase 2 test drivers (one per §4.1/§4.2 scenario)
+│   │   ├── _result.py           # §6.1 result builder + per-vendor cached-tokens normalization
+│   │   └── cold_warm.py         # §4.1 cold/warm pair test driver
 │   └── schemas/
 │       └── result.schema.json   # §6.1 per-test result schema (draft 2020-12)
-├── tests/                       # pytest test suite
+├── tests/                       # pytest test suite (71 tests covering Phase 1 + cold/warm)
+│   ├── conftest.py              # sys.path setup + shared fixtures_dir fixture
+│   ├── parsers/                 # Tests for cache_insights/parsers/
+│   ├── driver/                  # Tests for cache_insights/driver/ (mocked subprocess)
+│   ├── tests_runner/            # Tests for cache_insights/tests_runner/ (mocked driver)
 │   └── fixtures/                # Sample records for parser + validator tests
 ├── verify-local-sources.py      # Confirms each vendor's local attribution wiring
 ├── requirements.txt             # Python deps (jsonschema)
