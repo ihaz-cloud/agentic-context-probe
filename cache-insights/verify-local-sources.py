@@ -34,6 +34,7 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from cache_insights.parsers import codex as codex_parser  # noqa: E402
+from cache_insights.parsers import gemini as gemini_parser  # noqa: E402
 
 
 # ---- config.env loader ------------------------------------------------
@@ -144,24 +145,6 @@ def read_claude_last_usage(jsonl_path: Path) -> dict | None:
         except (json.JSONDecodeError, KeyError):
             pass
     return last_usage
-
-
-def read_gemini_telemetry(log_path: Path = None) -> list[dict]:
-    """Read Gemini OTel telemetry log, return all api_response events."""
-    path = log_path or Path.home() / ".gemini" / "telemetry.log"
-    if not path.exists():
-        return []
-    events = []
-    for line in open(path):
-        try:
-            rec = json.loads(line)
-            # OTel records may nest differently; search for the token fields
-            flat = json.dumps(rec)
-            if "cached_content_token_count" in flat or "input_token_count" in flat:
-                events.append(rec)
-        except json.JSONDecodeError:
-            pass
-    return events
 
 
 def find_codex_otel_file() -> Path | None:
@@ -301,22 +284,25 @@ def main():
     print("=" * 60)
     print("GEMINI — Local OTel telemetry fields")
     print("=" * 60)
-    tlog = Path.home() / ".gemini" / "telemetry.log"
-    events = read_gemini_telemetry(tlog)
-    if events:
+    tlog = gemini_parser.GEMINI_TELEMETRY_LOG
+    if tlog.exists():
         print(f"  file: {tlog}")
-        print(f"  api_response events found: {len(events)}")
-        last = events[-1]
-        print(f"  last event (truncated): {json.dumps(last, indent=4)[:1000]}")
-        results["gemini_local"] = last
-    else:
-        if tlog.exists():
-            print(f"  file exists ({tlog}) but no token events found")
+        try:
+            usage = gemini_parser.parse_last_turn(tlog)
+            print(f"  model:  {usage.get('model')}")
+            print(f"  usage: {json.dumps(usage, indent=4, default=str)}")
+            results["gemini_local"] = usage
+            for field in ["input_tokens", "cached_tokens", "output_tokens"]:
+                present = field in usage and usage[field] is not None
+                print(f"  {'✓' if present else '✗'} {field}: {usage.get(field, 'MISSING')}")
+        except (FileNotFoundError, ValueError) as e:
+            print(f"  ERROR parsing telemetry log: {e}")
             print(f"  file size: {tlog.stat().st_size} bytes")
             print(f"  Check: is telemetry.enabled = true in ~/.gemini/settings.json?")
-        else:
-            print(f"  {tlog} does not exist")
-            print(f"  To enable: add telemetry.enabled = true to ~/.gemini/settings.json")
+            results["gemini_local"] = {"file": str(tlog), "error": str(e)}
+    else:
+        print(f"  {tlog} does not exist")
+        print(f"  To enable: add telemetry.enabled = true to ~/.gemini/settings.json")
 
     # --- Codex local OTel ---
     print()
@@ -372,7 +358,7 @@ def main():
     print(f"  Anthropic API        |{check('anthropic_api', 'input_tokens', 'cache_read_input_tokens', 'output_tokens')}")
     print(f"  Google API           |{check('google_api', 'promptTokenCount', 'cachedContentTokenCount', 'candidatesTokenCount')}")
     print(f"  Claude local JSONL   |{check('claude_local', 'input_tokens', 'cache_read_input_tokens', 'output_tokens')}")
-    print(f"  Gemini local OTel    | (inspect event above)")
+    print(f"  Gemini local OTel    |{check('gemini_local', 'input_tokens', 'cached_tokens', 'output_tokens')}")
     print(f"  Codex local OTel     |{check('codex_local', 'input_tokens', 'cached_tokens', 'output_tokens')}")
 
     # Write raw results
