@@ -144,7 +144,8 @@ Used by `/leroy` and `/gogogo` to verify the dev environment is ready.
 | Claude JSONL dir | `test -d ~/.claude/projects && echo "exists"` | `exists` |
 | Pricing table | `test -f prd/pricing.toml && echo "exists"` | `exists` |
 | Result schema | `test -f cache_insights/schemas/result.schema.json && echo "exists"` | `exists` |
-| Python deps | `python3 -c "import jsonschema, cache_insights.parsers.claude, cache_insights.driver.tmux; print('ok')"` | `ok` |
+| Python deps | `python3 -c "import jsonschema, cache_insights.parsers.claude, cache_insights.driver.tmux, cache_insights.tests_runner.cold_warm; print('ok')"` | `ok` |
+| pytest suite | `python3 -m pytest tests/ -q 2>&1 \| tail -1` | `71 passed in <Ns>` |
 
 ---
 
