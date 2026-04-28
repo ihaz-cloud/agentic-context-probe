@@ -30,6 +30,30 @@ template_entry:
         implementation: {output: 0, forecast: 0, turns: 0}
 
 entries:
+  - date: "2026-04-28 16:40 UTC"
+    branch: "feature/work-20260427-bootstrap"
+    focus: [bugfix, feature, infrastructure]
+    completed:
+      - "cache-insights-a7b: verify-local-sources.py find_codex_otel_file now uses /tmp/otel-data/codex-logs.jsonl as primary; CODEX section refactored to call cache_insights.parsers.codex.parse_last_turn for ✓/✗ field reporting; pre-existing summary-table cache-checkmark byte typo fixed"
+      - "cache-insights-kyg: read_gemini_telemetry helper deleted, GEMINI section now calls cache_insights.parsers.gemini.parse_last_turn (pretty-printed JSON via iter_pretty_json_records); summary line updated"
+      - "cache-insights-ozg: 63 unit tests across 8 Phase 1 modules — tests/parsers/test_{claude,codex,gemini}.py, tests/test_{validate,nonce,tokenizers}.py, tests/driver/test_{dispatch,tmux}.py; tmux tests mock subprocess.run; fixtures added for claude/codex/gemini sample records"
+      - "cache-insights-0to.1: §4.1 cold/warm pair test driver — cache_insights/tests_runner/{cold_warm.py,_result.py}; verdict logic (cache_hit_confirmed | cache_miss | contaminated | error); Anthropic cache_read_input_tokens normalized to canonical cached_tokens; 8 verdict-branch unit tests with mocked driver. Spec also promoted from triage:backlog stub to triage:ready (full AC + per-phase Effort Forecast + cynefin:complicated)"
+    discovered: []
+    in_progress: []
+    blockers: []
+    next_steps:
+      - "Open PR for the four-commit bundle on this branch (Phase 1 + this session): commits 323fbdc..HEAD"
+      - "cache-insights-0to.3: §4.1 prefix warmup + meter calibration (with warmup-result cache) — next foundational Phase 2 bead, builds on tests_runner/ scaffolding"
+      - "cache-insights-0to.7 / 0to.8: §4.2 fork / rewind primitive validation (Anthropic-only on rewind)"
+      - "cache-insights-0to.4 / 0to.5: §4.1 prefix stability — suffix variation + content growth"
+      - "Real-CLI integration run for 0to.1 (deferred): execute run_cold_warm_pair() against live Codex/Claude/Gemini sessions, write results/*.json, validate § 6.1 conformance with real attribution data"
+      - "Rotate live OpenAI API key in prd/config.env (carried from prior session)"
+    epic_progress: "cache-insights-0to 8% → 16%"
+    commits: ["beb50c5", "0f4ace0", "8ba7d80", "83d1e03"]
+    token_usage:
+      metrics_file: ".claude/metrics.jsonl"
+      beads_tracked: ["cache-insights-a7b", "cache-insights-kyg", "cache-insights-ozg", "cache-insights-0to.1"]
+
   - date: "2026-04-28 06:00 UTC"
     branch: "feature/work-20260427-bootstrap"
     focus: [feature, infrastructure]
