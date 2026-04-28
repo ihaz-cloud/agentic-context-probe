@@ -188,5 +188,5 @@ Optionally add a one-shot script `verify-readiness.py` that prints the matrix.
 
 **Suggested fix:** Option (a) — add a substep: "Query coordinate segments: `token-tracking.sh status --coordinate --session <sid> --json`. For each segment, write one metrics record per bead in the segment's scope (set phase: coordinate, beads_in_scope: <list>, allocation_method: equal_split, full segment cost on each record — analytical queries divide by len(beads_in_scope) at read time)." This keeps the hook simple and the flush logic explicit.
 
-**Status:** [OPEN] — backfilled the missing 8 records this session via a one-off flush-coordinate.py; gap remains for next /wrapup.
+**Status:** [OPEN] — backfilled the missing 8 records this session via a one-off flush-coordinate.py. Patch drafted at `.claude/wrapup-coordinate-flush.patch` and verified to apply cleanly via `patch -p1` against `templates/.claude/commands/wrapup.md`. Hand to the vibe-md-templates owner alongside `.claude/bootstrap-prompt-deps.patch`.
 
