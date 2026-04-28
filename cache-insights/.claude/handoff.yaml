@@ -1,0 +1,57 @@
+# Handoff — session state log
+# Captures where work stands at end of each session.
+# gogogo/leroy reads entries[0]; wrapup prepends a new entry.
+# IMPORTANT: Always quote commit hashes — e.g. ["abc1234"] not [abc1234].
+
+template_entry:
+  date: "YYYY-MM-DD HH:MM UTC"
+  branch: "feature/work-YYYYMMDD-HHMM-short-description"
+  focus: [feature, bugfix, refactor, infrastructure, documentation, stabilization]
+  completed:
+    - "bead-id: what was accomplished"
+  discovered:
+    - "bead-id: new feature/bug filed this session"
+  in_progress:
+    - "bead-id: current state of partial work"
+  blockers:
+    - "bead-id: what's stuck and why"
+  next_steps:
+    - "bead-id: what to do next, in priority order"
+  epic_progress: "epic-id XX% → YY%"
+  commits: ["abc1234", "def5678"]
+  # token_usage references metrics.jsonl for detailed per-bead data;
+  # handoff only lists which beads were tracked. Omit for ad-hoc sessions.
+  token_usage:
+    total_output: 0
+    beads:
+      - id: "bead-id"
+        type: "feature"
+        planning: {output: 0, turns: 0}
+        implementation: {output: 0, forecast: 0, turns: 0}
+
+entries:
+  - date: "2026-04-27 21:30 UTC"
+    branch: "feature/work-20260427-bootstrap"
+    focus: [infrastructure, documentation]
+    completed:
+      - ".claude/ template population: architecture.md, data-model.md, security.md, tests.md authored from PRD; backend.md and frontend.md deleted (CLI-only project)"
+      - "Beads bootstrap: 30 beads created across 3 epics (cws Phase 1, 0to Phase 2, rk8 Phase 3) + 1 cross-cutting decision (e85)"
+      - "Dependency graph fully wired: epic-to-epic chain + child-to-child deps for Phase 1 stack and Phase 3 fine-grained Phase 2 consumption; bd ready returns the right 8 startable items"
+      - ".claude/changelog.yaml: first entry (0.1.0) recording bootstrap session"
+      - ".claude/enhancements.md: 3 documentation gaps logged"
+      - ".claude/bootstrap-prompt-deps.patch: drafted patch for vibe-md-templates/scripts/bootstrap.sh; verified to apply cleanly via git am or patch -p1"
+    discovered:
+      - "cache-insights-e85 (P0 decision): cross-source contradiction between DESIGN.prd.md §4.1 (CLI-driven all tests) and lessons_learned/cli-vs-direct-api.md (direct API for cache mechanics, CLI for §4.2 only)"
+      - "cache-insights-0to.12 (negative-control test, scenario F from research.md §5.3): nonce-mechanism sanity check missing from DESIGN.prd.md"
+      - "cache-insights-rk8.11 (lexicon updates from research.md §6.2): three documented edits to lexicon.prd.md not yet applied"
+      - "Upstream beads gap: bd 0.57.0 .beads/.gitignore missing dolt-server.port, dolt-server.activity, dolt-monitor.pid — confirmed as upstream beads bug, not a vibe-md-templates concern; user deferred drafting upstream patch"
+    in_progress: []
+    blockers:
+      - "cache-insights-0to.1 / 0to.3 / 0to.12: blocked on cache-insights-e85 decision until operator resolves CLI-vs-direct-API for §4.1"
+    next_steps:
+      - "cache-insights-e85: resolve CLI-vs-direct-API decision (P0, takes ~10 turns of operator discussion)"
+      - "cache-insights-cws.1, cws.2, cws.3, cws.6, cws.7, cws.8: claim Phase 1 leaves in parallel — none depend on the decision"
+      - "Hand bootstrap-prompt-deps.patch to vibe-md-templates repo owner (separate process, outside this project)"
+      - "Rotate live OpenAI API keys currently in prd/config.env per security.md before sharing repo"
+    epic_progress: "cws 0% → 0%, 0to 0% → 0%, rk8 0% → 0% (bootstrap session — no implementation work yet)"
+    commits: []

@@ -1,0 +1,56 @@
+# Changelog — structured session log
+# Each entry is one session/branch. Newest first.
+# gogogo reads entries[0]; wrapup prepends to the top of entries[].
+# Each area bullet is prefixed with added:|changed:|fixed: to indicate change type.
+#
+# Version Numbering (SemVer):
+#   MAJOR (X.0.0) — incompatible / breaking API changes
+#   MINOR (0.X.0) — new features, backwards-compatible
+#   PATCH (0.0.X) — bug fixes, minor improvements
+#   MVP: use 0.x.x while iterating; bump to 1.0.0 when core features are stable
+#
+# IMPORTANT: Always quote commit hashes — e.g. ["abc1234"] not [abc1234].
+
+template_entry:
+  version: "0.X.Y"
+  date: "YYYY-MM-DD"
+  branch: "feature/work-YYYYMMDD-HHMM-short-description"
+  focus: [feature, bugfix, refactor, infrastructure, documentation, stabilization]
+  summary: "One-line summary of the session's work"
+  beads: [bead-id-1, bead-id-2]
+  epic_progress: "epic-id XX% → YY%"
+  backend:
+    - "added: Models/API/service changes"
+  frontend:
+    - "changed: Pages/components/UX changes"
+  infra:
+    - "added: Migrations, config, tooling, CI changes"
+  docs:
+    - "added: Context docs, commands, workflow changes"
+  tests: "N new/updated, M total passing"
+  commits: ["abc1234", "def5678"]
+
+entries:
+  - version: "0.1.0"
+    date: "2026-04-27"
+    branch: "main"
+    focus: [infrastructure, documentation]
+    summary: "Bootstrap Cache Insights project — populate .claude/ templates from PRD, decompose work into 30 beads across 3 epics + 1 cross-cutting decision."
+    beads:
+      - cache-insights-cws
+      - cache-insights-0to
+      - cache-insights-rk8
+      - cache-insights-e85
+    docs:
+      - "added: architecture.md — vision, personas, exclusions, tech stack pinned to Codex 0.122.0/Claude Code 2.1.116/Gemini CLI 0.38.2/Python 3.12.3, system diagram, env health checks"
+      - "added: data-model.md — §6.1 result schema, §6.2 pricing schema, §6.3 forecast schema, cache attribution field map per vendor"
+      - "added: security.md — vendor credential inventory (project keys + admin keys + filters), gitignore rules, rotation-on-exposure policy"
+      - "added: tests.md — distinct product-test vs engineering-test sections, pre-run checklist, scenarios mapped to DESIGN §8 + §9"
+      - "removed: backend.md, frontend.md (not applicable — CLI-only measurement tool)"
+      - "added: enhancements.md — captures bootstrap-prompt dependency-graph gap, .beads/.gitignore upstream gap, multi-file PRD handling gap"
+      - "added: bootstrap-prompt-deps.patch — drafted patch for vibe-md-templates/scripts/bootstrap.sh closing the dependency-graph guidance gap; verified to apply cleanly"
+    infra:
+      - "added: .beads/ initialized (Dolt backend, prefix cache-insights, repo id 84fcf615)"
+      - "added: 30 beads created (3 epics + 1 decision + 26 children) with fully-wired dependency graph; bd ready returns the right 8 startable items"
+      - "added: cross-source contradiction surfaced as cache-insights-e85 (P0 decision) — DESIGN.prd.md §4.1 says all tests CLI-driven, lessons_learned/cli-vs-direct-api.md says cache mechanics need direct API"
+    commits: []

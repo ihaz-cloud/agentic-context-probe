@@ -1,0 +1,112 @@
+From: Robert Teller <robert.j.c.teller@gmail.com>
+Date: Mon, 27 Apr 2026
+Subject: [PATCH] bootstrap.sh: stronger dependency-graph guidance for beads creation
+
+The current bootstrap prompt has a single line about dependencies:
+
+    5. Set dependencies where one bead blocks another:
+       bd dep add <later-id> <earlier-id> -t blocks
+
+In practice this produces under-wired graphs. Agents write prose like
+"Depends on: Phase 1 epic" in stub descriptions, formalize only the
+epic-to-epic chain, and miss within-phase child-to-child links. The
+result: `bd ready` returns items whose prose-stated prerequisites are
+still open — contradicting the readiness rules in
+rules/work-item-templates.md ("Prose dependencies that aren't
+formalized are a defect — bd ready will surface the item while its
+prerequisites are still open").
+
+This patch closes that gap by adding to the prompt:
+
+  1. Granularity guidance — distinguishes epic-to-epic, child-to-child
+     cross-phase, and within-phase child-to-child deps, with concrete
+     examples of when each matters.
+  2. The "prose-must-match-graph" audit rule that work-item-templates.md
+     already requires but the prompt didn't operationalize.
+  3. A verification step (`bd ready`, `bd dep tree`, `bd lint`) so
+     structural gaps surface before the agent declares done.
+  4. Multi-file PRD handling — read sibling docs, surface cross-source
+     contradictions as decision-type beads, and block downstream work
+     on the decision being resolved.
+  5. Decision-type bead callout — calls out that decision/spike beads
+     typically BLOCK the items their findings will reshape (the prompt
+     previously only mentioned feature/chore/bug).
+
+Tested against the cache-insights project: re-running the bootstrap
+prompt with this guidance against the same source documents produces
+a fully-wired graph in one pass instead of needing two follow-up
+audits to catch (a) the within-phase child-to-child gap on Phase 2
+beads 0to.9 / 0to.10, (b) coarse epic-only Phase 3 gating that blocked
+unnecessary parallelism, and (c) a missed cross-source contradiction
+between DESIGN.prd.md and lessons_learned/cli-vs-direct-api.md that
+should have produced a decision bead in the original sweep.
+
+Reference: rules/work-item-templates.md "Readiness Checklist" →
+"Dependencies formalized" — the rule the original prompt didn't
+operationalize.
+
+---
+ scripts/bootstrap.sh | 40 ++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 38 insertions(+), 2 deletions(-)
+
+--- a/scripts/bootstrap.sh
++++ b/scripts/bootstrap.sh
+@@ -621,6 +621,13 @@
+     PROMPT="$PROMPT DO NOT ask questions that are answered in this document."
+     PROMPT="$PROMPT Only ask about information that is genuinely missing from the source."
+     PROMPT="$PROMPT"
++    PROMPT="$PROMPT If the source document lives in a directory with sibling docs (e.g. research.md,"
++    PROMPT="$PROMPT lessons_learned/, lexicon.prd.md), READ THOSE TOO. The named source is often"
++    PROMPT="$PROMPT one entry point into a larger spec. When sibling docs DISAGREE with the named"
++    PROMPT="$PROMPT source, do not silently pick one — surface the contradiction explicitly and,"
++    PROMPT="$PROMPT if beads are enabled, create a decision-type bead to resolve it (see step 5"
++    PROMPT="$PROMPT below) and block any downstream work the resolution would reshape."
++    PROMPT="$PROMPT"
+     if [ "$TIER" = "3-scale" ]; then
+         PROMPT="$PROMPT Map source content to Scale templates:"
+         PROMPT="$PROMPT - architecture.md → Product Guidance (vision, personas, exclusions), tech stack, system diagram, how to run, technology decisions table"
+@@ -656,7 +663,25 @@
+     PROMPT="$PROMPT 2. Create an EPIC for each phase: bd create 'Phase 1: <name>' --type epic"
+     PROMPT="$PROMPT 3. Create CHILD BEADS under each epic: bd create '<feature title>' --type feature --parent <epic-id>"
+     PROMPT="$PROMPT 4. Use the correct type: feature (user-facing), chore (infra/config/tests), bug (defects)."
+-    PROMPT="$PROMPT 5. Set dependencies where one bead blocks another: bd dep add <later-id> <earlier-id> -t blocks"
++    PROMPT="$PROMPT    Use --type decision for items that produce findings (spikes, architectural"
++    PROMPT="$PROMPT    questions, source-document contradictions) — these typically BLOCK the items"
++    PROMPT="$PROMPT    their findings will reshape."
++    PROMPT="$PROMPT 5. Wire dependencies. Granularity matters more than most agents assume:"
++    PROMPT="$PROMPT       bd dep add <later-id> <earlier-id> -t blocks"
++    PROMPT="$PROMPT    - Epic-to-epic deps gate whole phases (cws-epic blocks 0to-epic blocks rk8-epic)."
++    PROMPT="$PROMPT      Necessary but not sufficient — children of the gated epic surface together"
++    PROMPT="$PROMPT      when the upstream epic closes, even ones that need a specific sibling."
++    PROMPT="$PROMPT    - Child-to-child cross-phase deps enable parallel start (a Phase 3 forecast bead"
++    PROMPT="$PROMPT      that needs only the cold/warm + warmup outputs from Phase 2 should block on"
++    PROMPT="$PROMPT      THOSE specific Phase 2 children, not the whole Phase 2 epic)."
++    PROMPT="$PROMPT    - Within-phase child-to-child deps are REQUIRED whenever one sibling needs"
++    PROMPT="$PROMPT      another's output. Without them, bd ready surfaces both as ready simultaneously."
++    PROMPT="$PROMPT    Audit rule (from rules/work-item-templates.md Readiness Checklist):"
++    PROMPT="$PROMPT    Every 'depends on' / 'blocks on' / 'after X' / 'requires X' / 'prerequisite'"
++    PROMPT="$PROMPT    claim you write in a bead description MUST have a matching bd dep add entry."
++    PROMPT="$PROMPT    Prose without a graph entry is a defect. After creating beads, grep each"
++    PROMPT="$PROMPT    description for those words and confirm a formal dep entry exists for each match,"
++    PROMPT="$PROMPT    OR reword the prose as informational ('works alongside X', not 'depends on X')."
+     if [ "$TIER" = "3-scale" ]; then
+         PROMPT="$PROMPT 6. For Scale tier, use the STUB TEMPLATE from rules/work-item-templates.md for each bead:"
+         PROMPT="$PROMPT    - Summary: one sentence (what + why)"
+@@ -671,6 +696,14 @@
+         PROMPT="$PROMPT 6. Phase 1 beads are ready to work. Later phases are backlog."
+     fi
+     PROMPT="$PROMPT"
++    PROMPT="$PROMPT 8. VERIFY before declaring done. Do not skip this step:"
++    PROMPT="$PROMPT    - bd ready              — confirm only truly-startable items are returned."
++    PROMPT="$PROMPT                              No bead whose prose says 'depends on X' should appear"
++    PROMPT="$PROMPT                              while X is still open."
++    PROMPT="$PROMPT    - bd dep tree <epic-id> — for each epic, confirm the visual tree matches"
++    PROMPT="$PROMPT                              the prose 'Depends on:' lines in child descriptions."
++    PROMPT="$PROMPT    - bd lint               — surfaces structural template gaps."
++    PROMPT="$PROMPT"
+     PROMPT="$PROMPT Do NOT create a flat list of unrelated beads. Every bead must belong to an epic."
+     if [ "$DRY_RUN" = true ]; then
+         PROMPT="$PROMPT Since this is a dry run, LIST the bd commands you would run (do not execute them)."
+
+--
+2.43.0

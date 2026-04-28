@@ -1,0 +1,273 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Bead Metrics Record",
+  "description": "One JSON line per bead phase in .claude/metrics.jsonl. Tracks predicted vs actual effort for calibration. Unique key: bead_id + phase + session_id.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "bead_id",
+    "session_id",
+    "issue_type",
+    "issue_size",
+    "phase",
+    "origin",
+    "beads_in_scope",
+    "allocation_method",
+    "branch",
+    "forecast_output_tokens",
+    "forecast_turns",
+    "actual_output_tokens",
+    "actual_input_tokens",
+    "actual_cache_read_tokens",
+    "actual_cache_create_tokens",
+    "turns",
+    "started",
+    "stopped",
+    "timestamp",
+    "bead_created_at",
+    "bead_closed",
+    "priority",
+    "parent_epic",
+    "discovered_from"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for forward compatibility."
+    },
+    "bead_id": {
+      "type": "string",
+      "description": "Full bead ID (e.g. 'proj-x08.3')."
+    },
+    "session_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Claude Code session UUID from the transcript filename."
+    },
+    "issue_type": {
+      "type": "string",
+      "oneOf": [
+        { "const": "feature", "description": "New user-facing capability." },
+        { "const": "bug", "description": "Fixes broken behavior." },
+        { "const": "chore", "description": "Maintenance: setup, config, tests, upgrades, refactors, audits." },
+        { "const": "task", "description": "Quick capture only — should be reclassified during triage." },
+        { "const": "decision", "description": "Investigates architectural uncertainty, produces recommendation (spike)." },
+        { "const": "epic", "description": "Groups related beads into a cohesive deliverable." }
+      ]
+    },
+    "issue_size": {
+      "type": ["string", "null"],
+      "enum": ["small", "medium", "large", null],
+      "description": "Bead size from size:* label. Null if unlabeled."
+    },
+    "cynefin_domain": {
+      "type": ["string", "null"],
+      "oneOf": [
+        { "const": "clear", "description": "Obvious, repeatable. Apply best practice." },
+        { "const": "complicated", "description": "Knowable but requires expertise. Apply good practice." },
+        { "const": "complex", "description": "Emergent. Probe → Sense → Respond (safe-to-fail)." },
+        { "const": "chaotic", "description": "No perceivable cause-effect. Act → Sense → Respond (stabilize)." },
+        { "const": "disorder", "description": "Unknown domain. Should not appear in metrics — reclassify first." },
+        { "const": null, "description": "Unclassified (legacy beads without cynefin:* label)." }
+      ],
+      "description": "Cynefin domain from cynefin:* label at time of work. Enables forecast accuracy analysis by domain."
+    },
+    "layers": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "oneOf": [
+          { "const": "frontend", "description": "React/UI code." },
+          { "const": "backend", "description": "Python/API code." },
+          { "const": "data", "description": "Models, migrations, schema." },
+          { "const": "infra", "description": "Docker, CI, deploy." },
+          { "const": "workflow", "description": ".claude/ docs, hooks, commands." },
+          { "const": "test", "description": "Test files (pytest, Playwright, Vitest)." }
+        ]
+      },
+      "description": "Architectural layers touched, from layer:* labels on the bead. Empty array if unlabeled."
+    },
+    "phase": {
+      "type": "string",
+      "oneOf": [
+        { "const": "coordinate", "description": "Batch planning/sequencing across multiple beads. Set internally by --coordinate mode." },
+        { "const": "plan", "description": "Per-bead scoping, context loading, approach confirmation." },
+        { "const": "discover", "description": "Research, spikes, code exploration to fill spec gaps." },
+        { "const": "implement", "description": "Writing production code, writing tests, migrations." },
+        { "const": "test", "description": "Running verification: pytest, playwright, tsc, linter, manual checks." },
+        { "const": "fix", "description": "Patching failures found during testing." }
+      ]
+    },
+    "origin": {
+      "type": "string",
+      "oneOf": [
+        { "const": "committed", "description": "Fresh work planned at sprint start." },
+        { "const": "carryover", "description": "Unfinished from prior sprint." },
+        { "const": "added", "description": "Deliberately expanded scope mid-sprint." },
+        { "const": "discovered", "description": "Surfaced during implementation. Independent of discovered_from which tracks bug lineage." }
+      ]
+    },
+    "beads_in_scope": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "For coordinate phase: all bead IDs in the batch. For other phases: empty array. Used with allocation_method to compute per-bead cost."
+    },
+    "allocation_method": {
+      "type": ["string", "null"],
+      "enum": ["equal_split", "proportional", null],
+      "description": "For coordinate phase: 'equal_split'. For other phases: null. Queries divide raw token/turn counts by beads_in_scope.length when equal_split."
+    },
+    "branch": {
+      "type": "string",
+      "description": "Git branch name at time of work."
+    },
+    "forecast_output_tokens": {
+      "type": ["integer", "null"],
+      "description": "Predicted output tokens from bead Effort Forecast. Null if no forecast. Only set on the first implement record for a bead."
+    },
+    "forecast_turns": {
+      "type": ["integer", "null"],
+      "description": "Predicted turns from bead Effort Forecast. Null if no forecast. Only set on the first implement record for a bead."
+    },
+    "actual_output_tokens": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Output tokens generated by the model in this phase."
+    },
+    "actual_input_tokens": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "New (uncached) input tokens in this phase."
+    },
+    "actual_cache_read_tokens": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Tokens served from prompt cache in this phase."
+    },
+    "actual_cache_create_tokens": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Tokens written into prompt cache in this phase."
+    },
+    "turns": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of assistant turns (model responses) in this phase."
+    },
+    "started": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "ISO8601 UTC when this phase began. Null for backfilled records."
+    },
+    "stopped": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "ISO8601 UTC when this phase ended. Null if still in progress."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO8601 UTC when this record was written to metrics.jsonl."
+    },
+    "bead_created_at": {
+      "type": ["string", "null"],
+      "format": "date",
+      "description": "Date the bead was created (from bd show). Enables lead time: stopped - bead_created_at."
+    },
+    "first_claimed_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "ISO8601 UTC when this bead was first set to in_progress across any session. Enables cycle time: stopped - first_claimed_at. Null if unknown."
+    },
+    "bead_closed": {
+      "type": "boolean",
+      "description": "True if bd close was run for this bead during this session. Set on the final record for the bead at wrapup. False for carried-over beads and non-terminal phases."
+    },
+    "priority": {
+      "type": ["integer", "null"],
+      "enum": [0, 1, 2, 3, null],
+      "description": "Bead priority from bd show. P0=0 (critical), P1=1 (high), P2=2 (normal), P3=3 (low). Null if unset."
+    },
+    "parent_epic": {
+      "type": ["string", "null"],
+      "description": "Parent epic bead ID (e.g. 'proj-x08') from bd show PARENT section. Null if standalone. Enables epic burn rate and completion forecasting."
+    },
+    "discovered_from": {
+      "type": ["string", "null"],
+      "description": "Bead ID whose implementation introduced this defect. Required on all bug beads. Null only when the defect predates beads tracking or is caused by an external dependency (justification required in note field). For non-bug beads: null."
+    },
+    "record_type": {
+      "type": "string",
+      "oneOf": [
+        { "const": "bead_effort", "description": "Per-bead per-phase token/turn effort record. Default for all bead work." },
+        { "const": "session_time", "description": "Session-level time analysis record. One per session, computed at wrapup from transcript timestamps." }
+      ],
+      "description": "Discriminator for record shape. Determines which optional fields are present."
+    },
+    "ai_active_seconds": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Seconds the model was generating or tools were executing. Only present on session_time records."
+    },
+    "human_review_seconds": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Seconds of active human collaboration — reviewing output, typing next prompt. Gap < P75 threshold (default 1.7 min). Only present on session_time records."
+    },
+    "human_think_seconds": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Seconds of deep review, research outside Claude, reading code. Gap between P75-P93 thresholds (default 1.7-8 min). Only present on session_time records."
+    },
+    "human_idle_seconds": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Seconds of context switch, meeting, short break. Gap between P93-P97.7 thresholds (default 8 min - 2 hr). Only present on session_time records."
+    },
+    "human_away_seconds": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Seconds of long break or overnight. Gap > P97.7 threshold (default 2 hr). Excluded from flow efficiency calculation. Only present on session_time records."
+    },
+    "flow_efficiency_pct": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "ai_active / (ai_active + human_review) as integer percentage. Measures AI autonomy vs human guidance. 90%+ = highly autonomous, 50-70% = balanced, <50% = human-heavy. Only present on session_time records."
+    },
+    "away_pct": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "human_away_seconds / total_session_seconds as integer percentage. High values indicate fragmented sessions. Only present on session_time records."
+    },
+    "drift_risk": {
+      "type": ["string", "null"],
+      "oneOf": [
+        { "const": "LOW", "description": "Flow efficiency >= 70% and away_pct < 30%. Session is focused." },
+        { "const": "MEDIUM", "description": "Flow efficiency 50-70% or away_pct 30-60%. Session has some fragmentation." },
+        { "const": "HIGH", "description": "Flow efficiency < 50% or away_pct > 60%. Session is heavily fragmented — context drift likely." },
+        { "const": null, "description": "Not applicable (bead_effort records)." }
+      ],
+      "description": "Risk that context drift has degraded session quality. Only present on session_time records."
+    },
+    "orphaned": {
+      "type": "boolean",
+      "description": "True if this segment was not properly stopped during the workflow. Data may include unrelated tokens. Set by wrapup when active_phase is still set at session end."
+    },
+    "orphan_reason": {
+      "type": ["string", "null"],
+      "description": "Why this segment was marked orphaned (e.g. 'session ended without stop'). Null when orphaned is false."
+    },
+    "backfill": {
+      "type": "boolean",
+      "description": "True if record was reconstructed from historical data."
+    },
+    "note": {
+      "type": "string",
+      "description": "Optional free-text annotation. Required when discovered_from is null on a bug (e.g. 'predates beads', 'external dep: libfoo')."
+    }
+  },
+  "additionalProperties": false
+}

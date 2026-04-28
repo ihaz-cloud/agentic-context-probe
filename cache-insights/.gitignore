@@ -2,3 +2,8 @@
 # Dolt database files (added by bd init)
 .dolt/
 *.db
+
+# Vendor API keys — prd/config.env contains live OPENAI_API_KEY,
+# OPENAI_ADMIN_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY etc.
+# See .claude/security.md "Secrets Management" for rotation policy.
+prd/config.env
