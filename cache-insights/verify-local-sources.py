@@ -30,6 +30,11 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 CONFIG_ENV = SCRIPT_DIR / "config.env"
 
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from cache_insights.parsers import codex as codex_parser  # noqa: E402
+
 
 # ---- config.env loader ------------------------------------------------
 
@@ -160,9 +165,14 @@ def read_gemini_telemetry(log_path: Path = None) -> list[dict]:
 
 
 def find_codex_otel_file() -> Path | None:
-    """Look for Codex OTel trace file. Location depends on config."""
-    # Common locations to check
+    """Look for Codex OTel trace file. Location depends on config.
+
+    Per DESIGN.prd.md §5.3, the canonical location is the local OTel
+    Collector's output file (CODEX_LOGS_FILE). Legacy ~/.codex/ paths are
+    kept as fallbacks for older setups.
+    """
     candidates = [
+        codex_parser.CODEX_LOGS_FILE,
         Path.home() / ".codex" / "otel.log",
         Path.home() / ".codex" / "traces.log",
         Path.home() / ".codex" / "telemetry.log",
@@ -171,7 +181,6 @@ def find_codex_otel_file() -> Path | None:
     for p in candidates:
         if p.exists() and p.stat().st_size > 0:
             return p
-    # Also check if any file in ~/.codex/log/ mentions cached_token
     log_dir = Path.home() / ".codex" / "log"
     if log_dir.exists():
         for f in sorted(log_dir.iterdir(), key=lambda x: x.stat().st_mtime,
@@ -317,22 +326,26 @@ def main():
     otel_file = find_codex_otel_file()
     if otel_file:
         print(f"  file: {otel_file}")
-        text = otel_file.read_text(errors="replace")
-        # Search for cached_token_count and siblings
-        for field in ["cached_token_count", "input_token_count",
-                      "output_token_count", "total_token_count",
-                      "cached_tokens", "prompt_tokens", "completion_tokens"]:
-            count = text.count(field)
-            print(f"  {'✓' if count else '✗'} {field}: {count} occurrences")
-        results["codex_local"] = {"file": str(otel_file), "size": otel_file.stat().st_size}
+        try:
+            usage = codex_parser.parse_last_turn(otel_file)
+            print(f"  model:  {usage.get('model')}")
+            print(f"  usage: {json.dumps(usage, indent=4, default=str)}")
+            results["codex_local"] = usage
+            for field in ["input_tokens", "cached_tokens", "output_tokens"]:
+                present = field in usage and usage[field] is not None
+                print(f"  {'✓' if present else '✗'} {field}: {usage.get(field, 'MISSING')}")
+        except (FileNotFoundError, ValueError) as e:
+            print(f"  ERROR parsing collector output: {e}")
+            print(f"  file size: {otel_file.stat().st_size} bytes")
+            results["codex_local"] = {"file": str(otel_file), "error": str(e)}
     else:
-        print("  No Codex OTel file found at common locations")
-        print("  Checked: ~/.codex/otel.log, ~/.codex/traces.log,")
-        print("           ~/.codex/telemetry.log, ~/.codex/log/otel.log,")
-        print("           and all files in ~/.codex/log/ containing 'cached_token'")
+        print(f"  No Codex OTel file found.")
+        print(f"  Expected (per DESIGN.prd.md §5.3): {codex_parser.CODEX_LOGS_FILE}")
+        print(f"  Also checked legacy paths: ~/.codex/otel.log, ~/.codex/traces.log,")
+        print(f"                              ~/.codex/telemetry.log, ~/.codex/log/otel.log")
         print()
-        print("  To resolve: enable Codex OTel file export and run one prompt.")
-        print("  Then re-run this script.")
+        print("  To resolve: start the local OTel Collector (see architecture.md)")
+        print("  and run one Codex prompt. Then re-run this script.")
         results["codex_local"] = {"status": "not_found"}
 
     # --- Summary ---
@@ -352,7 +365,7 @@ def main():
         has_cache = cache_field in d
         has_out = out_field in d
         complete = has_in and has_cache and has_out
-        yi, yc, yo = ("✓" if has_in else "✗"), ("���" if has_cache else "✗"), ("✓" if has_out else "✗")
+        yi, yc, yo = ("✓" if has_in else "✗"), ("✓" if has_cache else "✗"), ("✓" if has_out else "✗")
         return f"  {yi:5}   {yc:6}   {yo:6}   {'YES' if complete else 'NO'}"
 
     print(f"  OpenAI API           |{check('openai_api', 'prompt_tokens', 'prompt_tokens_details', 'completion_tokens')}")
@@ -360,7 +373,7 @@ def main():
     print(f"  Google API           |{check('google_api', 'promptTokenCount', 'cachedContentTokenCount', 'candidatesTokenCount')}")
     print(f"  Claude local JSONL   |{check('claude_local', 'input_tokens', 'cache_read_input_tokens', 'output_tokens')}")
     print(f"  Gemini local OTel    | (inspect event above)")
-    print(f"  Codex local OTel     | (inspect file above)")
+    print(f"  Codex local OTel     |{check('codex_local', 'input_tokens', 'cached_tokens', 'output_tokens')}")
 
     # Write raw results
     out_path = SCRIPT_DIR / "verify-local-sources-results.json"
