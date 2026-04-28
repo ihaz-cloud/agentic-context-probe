@@ -175,3 +175,18 @@ Recurring delta cause: investigative scope expanding inside the bead — verifyi
 Optionally add a one-shot script `verify-readiness.py` that prints the matrix.
 
 **Status:** [OPEN]
+
+---
+
+### 2026-04-28 — /wrapup metrics flush misses coordinate-phase segments
+
+**Discovered while:** User noticed coordination beads weren't collected in metrics.jsonl after Wrapup 3c finished. Verified: my flush script queried `token-tracking.sh status --bead <id>` for each unique bead, which only returns segments tracked under that bead. Coordinate segments are stored separately under `~/.claude/.token_tracking/coordinate.<session-id>.json` and are NOT returned by per-bead status queries.
+
+**Gap:** `.claude/rules/workflow-execution.md` Wrapup 3c instructions describe writing one record per (segment × beads_in_scope) for coordinate phases, but assume the assistant will iterate the COORDINATE-scoped segments separately. The instruction "Append to .claude/metrics.jsonl — one JSON line per segment in sessions[<session_id>].segments from the status/stop output" implicitly meant per-bead status output and missed the coordinate file.
+
+**Where it should live:** Either (a) `rules/workflow-execution.md` Wrapup 3c — add an explicit step to query `token-tracking.sh status --coordinate --session <sid> --json` and flush those segments separately, OR (b) `.claude/hooks/token-tracking.sh status --bead <id>` should fold in any coordinate segments where this bead appears in beads_in_scope.
+
+**Suggested fix:** Option (a) — add a substep: "Query coordinate segments: `token-tracking.sh status --coordinate --session <sid> --json`. For each segment, write one metrics record per bead in the segment's scope (set phase: coordinate, beads_in_scope: <list>, allocation_method: equal_split, full segment cost on each record — analytical queries divide by len(beads_in_scope) at read time)." This keeps the hook simple and the flush logic explicit.
+
+**Status:** [OPEN] — backfilled the missing 8 records this session via a one-off flush-coordinate.py; gap remains for next /wrapup.
+
