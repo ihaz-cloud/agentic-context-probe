@@ -144,8 +144,8 @@ Used by `/leroy` and `/gogogo` to verify the dev environment is ready.
 | Claude JSONL dir | `test -d ~/.claude/projects && echo "exists"` | `exists` |
 | Pricing table | `test -f prd/pricing.toml && echo "exists"` | `exists` |
 | Result schema | `test -f cache_insights/schemas/result.schema.json && echo "exists"` | `exists` |
-| Python deps | `python3 -c "import jsonschema, cache_insights.parsers.claude, cache_insights.driver.tmux, cache_insights.tests_runner.cold_warm; print('ok')"` | `ok` |
-| pytest suite | `python3 -m pytest tests/ -q 2>&1 \| tail -1` | `71 passed in <Ns>` |
+| Python deps | `python3 -c "import jsonschema, cache_insights.parsers.claude, cache_insights.driver.tmux, cache_insights.driver.fork, cache_insights.driver.rewind, cache_insights.tests_runner.cold_warm, cache_insights.tests_runner.content_growth, cache_insights.tests_runner.suffix_variation, cache_insights.tests_runner.prefix_warmup, cache_insights.tests_runner.primitive_fork, cache_insights.tests_runner.primitive_rewind; print('ok')"` | `ok` |
+| pytest suite | `python3 -m pytest tests/ -q 2>&1 \| tail -1` | `166 passed in <Ns>` |
 
 ---
 
@@ -217,14 +217,22 @@ cache-insights/
 │   │   ├── codex.py             # /tmp/otel-data/codex-logs.jsonl (OTLP envelope)
 │   │   └── gemini.py            # ~/.gemini/telemetry.log (pretty-printed JSON)
 │   ├── driver/                  # tmux-based CLI orchestration
-│   │   ├── dispatch.py          # VENDOR_LAUNCH dict + LaunchSpec
+│   │   ├── dispatch.py          # VENDOR_LAUNCH dict + LaunchSpec + cli_version()
+│   │   ├── fork.py              # Vendor-agnostic fork primitive (anthropic/openai cross-process; gemini in-process)
+│   │   ├── rewind.py            # Vendor-agnostic rewind primitive (anthropic only; openai/google → RewindNotSupported)
 │   │   └── tmux.py              # TmuxSession + driver() context manager
 │   ├── tests_runner/            # Phase 2 test drivers (one per §4.1/§4.2 scenario)
-│   │   ├── _result.py           # §6.1 result builder + per-vendor cached-tokens normalization
-│   │   └── cold_warm.py         # §4.1 cold/warm pair test driver
+│   │   ├── _result.py           # §6.1 result builder + per-vendor cached-tokens normalization + compare_hit_ratios
+│   │   ├── _warmup_cache.py     # XDG-compliant atomic warmup-cache I/O for prefix_warmup
+│   │   ├── cold_warm.py         # §4.1 cold/warm pair test driver
+│   │   ├── content_growth.py    # §4.1 content-growth prefix-stability driver (4-turn: cold A → warm → append B → post-growth)
+│   │   ├── prefix_warmup.py     # §4.1 multi-turn prefix-warmup + meter calibration; emits metrics block; cached per (vendor, model, cli_version)
+│   │   ├── primitive_fork.py    # §4.2 fork primitive validation (byte_identity_preserved/broken)
+│   │   ├── primitive_rewind.py  # §4.2 rewind primitive validation; emits skipped on unsupported vendors
+│   │   └── suffix_variation.py  # §4.1 suffix-variation prefix-stability driver
 │   └── schemas/
-│       └── result.schema.json   # §6.1 per-test result schema (draft 2020-12)
-├── tests/                       # pytest test suite (71 tests covering Phase 1 + cold/warm)
+│       └── result.schema.json   # §6.1 per-test result schema (draft 2020-12); metrics block + cached_at + cli_version_source
+├── tests/                       # pytest test suite (166 tests covering Phase 1 + §4.1 + §4.2)
 │   ├── conftest.py              # sys.path setup + shared fixtures_dir fixture
 │   ├── parsers/                 # Tests for cache_insights/parsers/
 │   ├── driver/                  # Tests for cache_insights/driver/ (mocked subprocess)

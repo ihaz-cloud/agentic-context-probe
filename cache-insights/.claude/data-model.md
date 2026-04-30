@@ -62,6 +62,19 @@ Each test case produces one JSON file in `results/`. Vendor, test_type, and verd
 | `error` | object | conditional | Set on infrastructure or vendor errors; see Failure Records below |
 | `actual_wait_seconds` | number | conditional | TTL tests only; recorded when actual wait differs from intended |
 | `notes` | string | optional | Free-form operator note |
+| `cli_version` | string | optional | Vendor CLI version under test (per DESIGN §5.3 prerequisite pinning) |
+| `cli_version_source` | string | optional | Verbatim stdout of the vendor's `--version` command; written by `prefix_warmup` when caching results |
+| `cached_at` | ISO 8601 string | optional | When this result was loaded from the warmup cache (only present on `verdict="skipped"` cache loads) |
+| `metrics` | object | optional | `prefix_warmup` only. Strict shape — see Metrics block below |
+
+### Metrics block (`prefix_warmup` only)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `overhead_per_turn` | int[] | Per-turn `input_tokens - expected_user_content_per_turn` (CLI overhead from system prompt + tool defs) |
+| `first_cache_engagement_turn` | int \| null | Smallest turn index where cached_tokens > 0; null if cache never engaged |
+| `hit_ratio_per_turn` | float[] | Per-turn `cached_tokens / input_tokens` (0 when input_tokens == 0) |
+| `expected_user_content_per_turn` | int[] | Per-turn cumulative count of user-content tokens sent (local count) |
 
 ### Request Entry
 
@@ -86,8 +99,12 @@ Each test case produces one JSON file in `results/`. Vendor, test_type, and verd
 | `byte_identity_preserved` | §4.2 primitive test: fork/rewind preserved the cache |
 | `byte_identity_broken` | §4.2 primitive test: fork/rewind invalidated the cache |
 | `contaminated` | First "cold" request reported nonzero cached tokens — excluded from aggregates |
-| `infra_error` | Test failed before producing valid measurements (collector down, tmux failure, CLI crash) |
-| `vendor_error` | Vendor API/CLI returned an error (rate limit, auth failure, etc.) |
+| `clean` | Negative-control: both nonces produced no cached tokens (methodology validates) |
+| `contaminated_a` / `contaminated_b` | Negative-control: turn A or B contaminated; the methodology may still be sound for the other |
+| `methodology_failure` | Negative-control: both nonces shared cache — CLI auto-injected boilerplate creates a shared prefix; CLI-driven §4.1 results are invalid for this vendor |
+| `completed` | `prefix_warmup` only — the calibration loop ran to completion without contamination |
+| `skipped` | Vendor doesn't support the primitive (rewind on openai/google) OR result loaded from warmup cache |
+| `error` | Test failed before producing valid measurements (collector down, tmux failure, parser failure) |
 
 ### Failure Records (`error` object)
 

@@ -30,6 +30,37 @@ template_entry:
         implementation: {output: 0, forecast: 0, turns: 0}
 
 entries:
+  - date: "2026-04-30 05:35 UTC"
+    branch: "feature/work-20260427-bootstrap"
+    focus: [feature, infrastructure]
+    completed:
+      - "cache-insights-0to.5: §4.1 content-growth driver landed. New cache_insights/tests_runner/content_growth.py (4-turn cold A → warm baseline → append B → post-growth); _result.build_result gained additional_nonces kwarg for multi-payload concatenation; 11 verdict-branch tests including Anthropic cache_control note"
+      - "cache-insights-0to.4: §4.1 suffix-variation driver landed + new driver/fork.py. Vendor-agnostic fork helper (anthropic --fork-session cross-process, codex fork cross-process, gemini /resume save+resume in-process) shared with future 0to.7; suffix_variation emits cache_hit_confirmed / cache_miss with 10% tolerance via _result.compare_hit_ratios. 25 tests (13 driver-side + 12 fork mocks). Mid-bead correction: navigator-survey misidentified rk8.1 as fork consumer; the actual consumer is 0to.7 — dep edge corrected"
+      - "cache-insights-0to.3: §4.1 prefix-warmup + meter calibration driver landed. New tests_runner/prefix_warmup.py (multi-turn loop, default 8 turns) + tests_runner/_warmup_cache.py (atomic XDG-compliant cache I/O); driver/dispatch gained cli_version() helper + LaunchSpec.cli_version_command field; result.schema.json gained optional metrics block (overhead_per_turn, first_cache_engagement_turn, hit_ratio_per_turn, expected_user_content_per_turn) + cached_at + cli_version_source fields; cache stored at $XDG_CACHE_HOME/cache-insights/warmup/<vendor>__<model>__<cli_version>.json. 27 tests. One fix iteration on schema minLength=1 nonce rejection in error path"
+      - "cache-insights-0to.7: §4.2 fork primitive validation. Verdict-emit variant of suffix_variation reusing fork.py; emits byte_identity_preserved/byte_identity_broken; Codex-specific note when broken (conversation_id semantics). 11 tests"
+      - "cache-insights-0to.8: §4.2 rewind primitive validation + new driver/rewind.py. Anthropic Esc-Esc menu sends; openai/google emit verdict=skipped via RewindNotSupported (subclass of RewindError). 21 tests"
+      - "cache-insights-0to.5/4/3: triage-enriched mid-session (triage:backlog → triage:ready) before implementation"
+      - "cache-insights-0to.7/8/2/6/12: triage-enriched mid-session as added scope (originally not in committed plan)"
+    discovered:
+      - "Navigator-survey output's prose dependency claims should be validated via bd show before encoding into bead descriptions. Logged to enhancements.md (cost 12 turns of correction on 0to.4)."
+      - "Result schema's nonce minLength=1 rejects empty string in error paths where the driver fails before any nonce is generated. Logged to enhancements.md with proposed shared placeholder helper."
+      - "bd list --json defaults to --status open and silently undercounts epic completion. Logged to enhancements.md."
+    in_progress: []
+    blockers: []
+    next_steps:
+      - "Open PR for the now-substantial branch (feature/work-20260427-bootstrap) — accumulates v0.2.0 + v0.3.0 + v0.4.0 work. Branch is well past the size where landing a single PR is practical for review; consider splitting via interactive rebase or stacking PRs by phase if the team wants smaller surfaces. As-is, the branch is internally consistent and tests pass at every commit."
+      - "cache-insights-0to.6: implement §4.1 efficiency post-processor (small, ready) — natural next step now that prefix_warmup metrics exist. Annotates results/*.json with expected_cache_ratio / observed_cache_ratio / efficiency_delta."
+      - "cache-insights-0to.12: implement §4.1 negative-control test (small, ready) — methodology safety-net; scenario F per research.md §5.3."
+      - "cache-insights-0to.2: implement §4.1 TTL mapping (medium, ready) — new driver/resume.py + tests_runner/ttl_curve.py; long-running but early-terminates on first miss."
+      - "cache-insights-0to.9 (failure handling) and 0to.10 (operator CLI) still triage:backlog — recommend triaging after 0to.6/12/2 implementations stabilize the test_runner surface."
+      - "Real-CLI integration runs deferred: all §4.1/§4.2 drivers landed are unit-test-only with mocked drivers. Pending an integration session to validate against live tmux + vendor CLIs."
+      - "Rotate live OpenAI API key in prd/config.env (carried from prior session)."
+    epic_progress: "cache-insights-0to 16% → 54%"
+    commits: ["5053ef6"]
+    token_usage:
+      metrics_file: ".claude/metrics.jsonl"
+      beads_tracked: ["cache-insights-0to.5", "cache-insights-0to.4", "cache-insights-0to.3", "cache-insights-0to.7", "cache-insights-0to.8", "cache-insights-0to.2", "cache-insights-0to.6", "cache-insights-0to.12"]
+
   - date: "2026-04-28 16:40 UTC"
     branch: "feature/work-20260427-bootstrap"
     focus: [bugfix, feature, infrastructure]

@@ -31,6 +31,42 @@ template_entry:
   commits: ["abc1234", "def5678"]
 
 entries:
+  - version: "0.4.0"
+    date: "2026-04-30"
+    branch: "feature/work-20260427-bootstrap"
+    focus: [feature, infrastructure]
+    summary: "Phase 2 cache-mechanics drivers: §4.1 prefix-stability (content_growth + suffix_variation + prefix_warmup) and §4.2 primitive validation (fork + rewind). 5 beads closed, 3 triage-enriched, 95 new tests."
+    beads:
+      - cache-insights-0to.5
+      - cache-insights-0to.4
+      - cache-insights-0to.3
+      - cache-insights-0to.7
+      - cache-insights-0to.8
+      - cache-insights-0to.2
+      - cache-insights-0to.6
+      - cache-insights-0to.12
+    epic_progress: "cache-insights-0to 16% → 54%"
+    backend:
+      - "added: cache_insights/tests_runner/content_growth.py — §4.1 content-growth prefix-stability driver (4-turn: cold A → warm baseline → append B → post-growth)"
+      - "added: cache_insights/tests_runner/suffix_variation.py — §4.1 suffix-variation prefix-stability driver (cold + warm baseline + fork + post-fork) emitting cache_hit_confirmed/cache_miss"
+      - "added: cache_insights/tests_runner/prefix_warmup.py — §4.1 multi-turn prefix-warmup + meter-calibration driver with metrics block (overhead_per_turn, first_cache_engagement_turn, hit_ratio_per_turn) and atomic warmup-result cache"
+      - "added: cache_insights/tests_runner/primitive_fork.py — §4.2 fork primitive validation emitting byte_identity_preserved/byte_identity_broken; Codex-specific note when broken (conversation_id semantics)"
+      - "added: cache_insights/tests_runner/primitive_rewind.py — §4.2 rewind primitive validation; emits verdict=skipped for openai/google (RewindNotSupported)"
+      - "added: cache_insights/tests_runner/_warmup_cache.py — XDG-compliant atomic warmup-cache I/O (path canonicalization, atomic write via tempfile+rename, malformed-file tolerance)"
+      - "added: cache_insights/driver/fork.py — vendor-agnostic fork primitive (anthropic --fork-session cross-process, codex fork cross-process, gemini /resume save+resume in-process); ForkError exception hierarchy"
+      - "added: cache_insights/driver/rewind.py — rewind primitive (anthropic Esc-Esc menu via dispatch.LaunchSpec.rewind_keys); RewindError + RewindNotSupported subclass"
+      - "added: cache_insights/driver/dispatch.cli_version() — vendor CLI version detection (with 'unknown' fallback, never participates in cache key)"
+      - "changed: cache_insights/driver/dispatch.LaunchSpec gained cli_version_command tuple field; populated for all three vendors"
+      - "changed: cache_insights/tests_runner/_result.build_result accepts additional_nonces (deterministic multi-payload concatenation), compare_hit_ratios helper, metrics dict, cached_at, cli_version_source kwargs"
+      - "changed: cache_insights/schemas/result.schema.json — added optional metrics block (overhead_per_turn, first_cache_engagement_turn, hit_ratio_per_turn, expected_user_content_per_turn), cached_at, cli_version_source"
+    docs:
+      - "added: cache-insights-0to.3, 0to.4, 0to.5 promoted from triage:backlog stubs to triage:ready full feature specs (Changes Needed, AC, per-phase Effort Forecasts, cynefin:complicated, layer labels)"
+      - "added: cache-insights-0to.7 + 0to.8 triage-enriched mid-session (formal 0to.7 ← 0to.4 dep edge); both implemented and closed"
+      - "added: cache-insights-0to.2 (TTL mapping), 0to.6 (efficiency post-processor), 0to.12 (negative control) triage-enriched to ready with concrete file manifests now possible (driver/tests_runner helpers exist)"
+      - "added: enhancements.md entries — navigator-survey prose-dep validation gap, result schema empty-nonce rejection in error paths, bd list --json default omits closed beads"
+    tests: "95 new (content_growth: 11, suffix_variation: 13, fork: 12, primitive_fork: 11, rewind: 8, primitive_rewind: 13, warmup_cache: 11, prefix_warmup: 16) → 166 total passing"
+    commits: ["5053ef6"]
+
   - version: "0.3.0"
     date: "2026-04-28"
     branch: "feature/work-20260427-bootstrap"

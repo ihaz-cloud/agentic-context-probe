@@ -218,3 +218,46 @@ Optionally add a one-shot script `verify-readiness.py` that prints the matrix.
 
 **Status:** [OPEN]
 
+---
+
+### 2026-04-28 — navigator-survey output's prose dependency claims need validation
+
+**Discovered while:** Implementing `cache-insights-0to.4` (suffix variation). The navigator-survey enrichment text declared "Blocks: rk8.1 (§4.2 fork test)" — but `rk8.1` is the §4.3 cost forecast (fork-per-question strategy), not the §4.2 fork primitive validation (which is `0to.7`). The wrong dep edge `rk8.1 ← 0to.4` got encoded into both the bead description and a formal `bd dep add` call before the title mismatch was caught. Correction took 12 turns (description rewrite + dep removal + dep re-add) — the entire 0to.4 plan-phase actual ran ~2.7× over forecast as a result.
+
+**Gap:** Subagents synthesizing bead spec text don't validate their dependency claims against `bd show <consuming-bead>` before they get encoded. The /leroy spec already says navigator output should be validated, but the validation guidance is structural ("does it have all 7 sections?") not semantic ("do the claimed dependencies actually point at the right beads?"). Result: the agent (me) trusted the navigator's prose verbatim and shipped the wrong dep.
+
+**Where it should live:** Either (a) the navigator-survey agent should self-validate via `bd show` before emitting any "Blocks: X" or "Depends on: X" line, OR (b) the /leroy / /wrapup-style coordinator step should add a "verify dep claims" substep before applying the description.
+
+**Suggested fix:** Quick fix in `.claude/agents/navigator-survey.md` (or wherever survey agent lives): "Before emitting any 'Blocks: <id>' or 'Depends on: <id>' line, run `bd show <id>` to confirm the title matches your intended consumer. If you're claiming a bead consumes a helper your enrichment introduces, the consuming bead's description should reference that helper by name." Costs 1-2 extra turns per dep claim; saves ~10 turns per error.
+
+**Status:** [OPEN]
+
+---
+
+### 2026-04-28 — Result schema rejects empty nonce in error path
+
+**Discovered while:** Implementing `cache-insights-0to.3` (prefix_warmup). The error path passed `nonce_value=_join_nonces(nonces)` which returns `""` if zero nonces were generated (e.g., driver fails on launch before any `generate_nonce` call). The schema's `nonce` field has `minLength: 1`, so `validate_result` raised `ValidationError`. Required adding a `"<no nonces generated before failure>"` placeholder; cost 1 fix iteration.
+
+**Gap:** Three of the four §4.1/§4.2 drivers I wrote this session pre-allocate the nonce before the try-block (cold_warm.py + suffix_variation.py + content_growth.py + primitive_fork.py + primitive_rewind.py). prefix_warmup.py is unique in that it generates a fresh nonce per turn inside the loop — so its error path is the only one that can reach `nonces == []`. The schema's `minLength: 1` invariant is reasonable for normal verdicts but is the wrong constraint for the `verdict=error` case where `nonce` is purely informational.
+
+**Where it should live:** Either (a) `cache_insights/schemas/result.schema.json` — relax `nonce.minLength` to 0 when verdict=error (conditional schema), OR (b) shared helper in `cache_insights/tests_runner/_result.py` — `placeholder_nonce_for_error()` that returns a stable string, used uniformly across drivers' error paths.
+
+**Suggested fix:** Option (b) is simpler: add `def placeholder_nonce_for_error() -> str: return "<error: no nonce captured>"` to `_result.py`, and have all driver `_error_result` helpers use it when their nonces list is empty. Avoids per-driver bespoke strings and keeps the schema tight.
+
+**Status:** [OPEN]
+
+---
+
+### 2026-04-28 — `bd list --json` default omits closed beads, surprising for epic progress queries
+
+**Discovered while:** Computing Phase 2 epic progress at end-of-session. Used `bd list --json | python3 ...` to count `parent == 'cache-insights-0to'` entries by status. The first run reported "Phase 2: 0/5 closed (0%)" — wildly wrong, because `bd list` defaults to `--status open`. Adding `--status all` gave the correct "6/11 closed (54%)".
+
+**Gap:** `bd list` is the natural command for "show me everything in this epic" but its open-only default makes it the wrong default for epic-progress queries. The argument-default mismatch isn't documented in the workflow files; an agent or operator querying epic state cold will likely get wrong numbers and not notice.
+
+**Where it should live:** Either (a) `rules/workflow-session.md` — note in the "View the Work Queue" subsection that `bd list` defaults to `--status open` and epic-progress queries need `--status all`, OR (b) introduce a `bd epic-progress <epic-id>` convenience command in upstream `bd` (out of scope here).
+
+**Suggested fix:** Two-line addition to `rules/workflow-session.md` under "View the Work Queue":
+> **For epic progress queries: pass `--status all`.** `bd list` defaults to open-only — closed beads are silently excluded, which understates epic completion percentages.
+
+**Status:** [OPEN]
+
