@@ -7,6 +7,7 @@ a vendor is a single dict entry — no new module.
 
 from __future__ import annotations
 
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -37,6 +38,7 @@ class LaunchSpec:
     completion_check: Callable[[Path], bool]
     compact_command: str
     rewind_keys: tuple[str, ...] | None
+    cli_version_command: tuple[str, ...] = ()
 
 
 def _claude_completion_source(session_uuid: str | None = None, **_: object) -> Path:
@@ -108,6 +110,7 @@ VENDOR_LAUNCH: dict[str, LaunchSpec] = {
         completion_check=_claude_completion_check,
         compact_command="/compact",
         rewind_keys=("Escape", "Escape"),
+        cli_version_command=("claude", "--version"),
     ),
     "google": LaunchSpec(
         vendor="google",
@@ -117,6 +120,7 @@ VENDOR_LAUNCH: dict[str, LaunchSpec] = {
         completion_check=_gemini_completion_check,
         compact_command="/compress",
         rewind_keys=None,
+        cli_version_command=("gemini", "--version"),
     ),
     "openai": LaunchSpec(
         vendor="openai",
@@ -126,6 +130,7 @@ VENDOR_LAUNCH: dict[str, LaunchSpec] = {
         completion_check=_codex_completion_check,
         compact_command="/compact",
         rewind_keys=None,
+        cli_version_command=("codex", "--version"),
     ),
 }
 
@@ -136,3 +141,29 @@ def get_launch_spec(vendor: str) -> LaunchSpec:
             f"Unknown vendor {vendor!r}; expected one of {sorted(VENDOR_LAUNCH)}"
         )
     return VENDOR_LAUNCH[vendor]
+
+
+def cli_version(vendor: str) -> str:
+    """Return the vendor CLI's version string, or ``"unknown"`` on failure.
+
+    The result is suitable for use as a cache key (sanitized for filename
+    safety by callers if needed). ``"unknown"`` should NEVER participate in
+    a cache key — callers must skip caching when this is returned.
+    """
+    spec = get_launch_spec(vendor)
+    if not spec.cli_version_command:
+        return "unknown"
+    try:
+        result = subprocess.run(
+            list(spec.cli_version_command),
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (subprocess.SubprocessError, FileNotFoundError, OSError):
+        return "unknown"
+    if result.returncode != 0:
+        return "unknown"
+    out = (result.stdout or "").strip()
+    return out or "unknown"

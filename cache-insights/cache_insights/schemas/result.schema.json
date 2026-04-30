@@ -110,6 +110,48 @@
     "cli_version": {
       "type": "string",
       "description": "Vendor CLI version under test (per DESIGN §5.3 prerequisite pinning)."
+    },
+    "cli_version_source": {
+      "type": "string",
+      "description": "Verbatim stdout of the vendor's --version command, for warmup-cache traceability."
+    },
+    "cached_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this result was written to the warmup cache (only present on warmup-cache loads)."
+    },
+    "metrics": {
+      "type": "object",
+      "description": "Per-turn calibration outputs (prefix_warmup test). Strict shape so downstream consumers can rely on key presence.",
+      "additionalProperties": false,
+      "required": [
+        "overhead_per_turn",
+        "first_cache_engagement_turn",
+        "hit_ratio_per_turn",
+        "expected_user_content_per_turn"
+      ],
+      "properties": {
+        "overhead_per_turn": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "description": "Per-turn delta input_tokens - cumulative_user_content_tokens (CLI overhead from system prompt + tool defs)."
+        },
+        "first_cache_engagement_turn": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Smallest turn index where cached_tokens > 0; null if cache never engaged."
+        },
+        "hit_ratio_per_turn": {
+          "type": "array",
+          "items": { "type": "number", "minimum": 0, "maximum": 1 },
+          "description": "Per-turn cached_tokens / input_tokens ratio (0 when input_tokens == 0)."
+        },
+        "expected_user_content_per_turn": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0 },
+          "description": "Per-turn cumulative count of user-content tokens sent (the local count; CLI may report higher input_tokens due to system prompt)."
+        }
+      }
     }
   },
   "$defs": {
