@@ -261,3 +261,31 @@ Optionally add a one-shot script `verify-readiness.py` that prints the matrix.
 
 **Status:** [OPEN]
 
+---
+
+### 2026-04-30 — Template-establishing beads consistently exceed token forecast
+
+**Discovered while:** Comparing per-bead actuals across 5 implementations in one session. Forecasts were derived from "follows existing template" historical averages but the first two beads in a new template family (`cache-insights-0to.5` and `cache-insights-0to.4`) ran 2.8× and 3.5× over token forecast respectively. The third (`0to.3`, the largest bead) came in at forecast (0.9× tokens). Subsequent variants on the established template (`0to.7`, `0to.8`) ran 0.6× turns under forecast.
+
+| Bead | Role | Forecast | Actual | Token ratio |
+|---|---|---|---|---|
+| 0to.5 | first impl in family | 19t/24K | 28t/68K | **2.8×** |
+| 0to.4 | second (introduces shared helper) | 26t/32K | 44t/113K | **3.5×** |
+| 0to.3 | largest, third in family | 31t/43K | 37t/38K | 0.9× |
+| 0to.7 | template variant | 11t/9K | 7t/12K | 1.3× |
+| 0to.8 | template variant | 18t/15K | 10t/17K | 1.1× |
+
+**Gap:** Forecasts based on historical-average per-phase tokens systematically under-budget the FIRST implementation in a template family. The first bead is *generating* the template (full module + full test scaffolding + per-vendor branching), not consuming it. By the time the third bead lands, `_StubSession`, fixture conventions, error-result helpers, and verdict-emit shape are stable and copy-paste-with-edits is fast.
+
+The `rules/work-item-templates.md` Effort Forecast contract recommends consulting `.claude/metrics.jsonl` historical averages but doesn't distinguish "first in a family" from "Nth variant".
+
+**Where it should live:** `rules/work-item-templates.md` Effort Forecast contract — add a calibration rule.
+
+**Suggested fix:** Add a rule under the Effort Forecast contract:
+
+> **First-in-family multiplier:** When a bead is the FIRST implementation of a new test type, driver primitive, or shared helper family, multiply the implement-phase token estimate by 2-3×. Subsequent variants on the same template can use the historical average. Document this distinction in the rationale field. Heuristic: if the bead introduces a new `_StubSession`-like shared fixture, a new exception class, or a new module-level helper that 2+ future beads will consume, treat it as first-in-family.
+
+This calibration would have caught the 0to.5/0to.4 forecasts as low and produced more accurate estimates without disrupting the working forecasts for variants like 0to.7/0to.8.
+
+**Status:** [OPEN]
+

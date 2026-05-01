@@ -153,9 +153,9 @@ Migrations, queries, and schema evolution.
 
 How tests are structured, named, and what they cover.
 
-### 6.1 [Pattern Name]
+### 6.1 Test name reflects behavior
 
-**Standard: [Rule.]**
+**Standard: Test names describe the behavior being verified, not the function under test.**
 
 ```python
 # CORRECT — test name reflects behavior
@@ -167,15 +167,122 @@ def test_create_item():
     ...
 ```
 
+### 6.2 Stub session classes belong in conftest, not duplicated per test file
+
+**Standard: Driver-level test stubs (e.g. `_StubSession` for tmux session
+mocking) live in `tests/conftest.py` as fixtures. Per-test-file stubs that
+copy and slightly modify the canonical stub are a code smell.**
+
+This codebase has multiple test files (`test_cold_warm.py`,
+`test_content_growth.py`, `test_suffix_variation.py`, `test_primitive_fork.py`,
+`test_primitive_rewind.py`, `test_prefix_warmup.py`) that each define their
+own `_StubSession` class. The classes drift slightly (different defaults for
+`name=`, varying handling of `teardown()`, etc.) — making it harder to keep
+behavior consistent and harder to add a new method to all of them.
+
+```python
+# CORRECT — shared fixture in tests/conftest.py
+@pytest.fixture
+def stub_session_factory():
+    def factory(name: str = "stub") -> _StubSession:
+        ...
+    return factory
+
+# Test file consumes the shared fixture
+def test_my_thing(stub_session_factory):
+    session = stub_session_factory(name="forked")
+    ...
+
+# WRONG — copy-pasted _StubSession class in each test file
+class _StubSession:
+    def __init__(self, name: str = "stub"):
+        self.name = name
+        ...
+    def baseline_mtime(self, **_): return None
+    def send_prompt(self, text: str) -> None: ...
+    # (drifts subtly: this version has teardown(), the next file forgets it)
+```
+
+**Reference implementation:** _to be promoted from `tests/tests_runner/test_cold_warm.py:22`
+when refactored — file as a chore item._
+
+**Current violations:** All 5 driver-mocking test files added 2026-04-30 —
+`test_content_growth.py`, `test_suffix_variation.py`, `test_primitive_fork.py`,
+`test_primitive_rewind.py`, `test_prefix_warmup.py`.
+
 ---
 
 ## 7. Error Handling Standards
 
 How errors are raised, caught, and communicated to users.
 
-### 7.1 [Pattern Name]
+### 7.1 Driver error-result helpers must guarantee non-empty `nonce` field
 
-**Standard: [Rule.]**
+**Standard: Every driver's `_error_result` helper must produce a §6.1 result
+with a non-empty `nonce` string, even when the driver fails before any nonce
+is generated. The result schema enforces `minLength: 1` on `nonce` —
+returning `""` causes `validate_result` to raise `ValidationError`, which
+propagates through the error path and obscures the original failure.**
+
+```python
+# CORRECT — guarantee non-empty nonce in error path
+def _error_result(*, vendor, model, nonces, ...) -> dict:
+    nonce_repr = _join_nonces(nonces) or "<no nonces generated before failure>"
+    return build_result(
+        ...,
+        nonce_value=nonce_repr,
+        verdict="error",
+        error=f"...",
+    )
+
+# WRONG — empty string fails schema validation
+def _error_result(*, vendor, model, nonces, ...) -> dict:
+    return build_result(
+        ...,
+        nonce_value=_join_nonces(nonces),  # may be "" — schema rejects
+        verdict="error",
+    )
+```
+
+**Reference implementation:** `cache_insights/tests_runner/prefix_warmup.py:_error_result`
+(uses placeholder when `nonces` list is empty).
+
+**Long-term fix:** Promote a shared `placeholder_nonce_for_error()` to
+`_result.py` so each driver doesn't reimplement the placeholder string.
+Tracked in `enhancements.md` (2026-04-28 entry).
+
+### 7.2 Subagent prose dependency claims must be verified before encoding
+
+**Standard: When a subagent (navigator-survey, etc.) emits enrichment text
+with claims like "Blocks: <id>" or "Depends on: <id>", verify the claim by
+running `bd show <id>` BEFORE encoding the dep into either the bead
+description OR a `bd dep add` call.**
+
+The navigator subagent does not validate its own dep claims against the
+target bead's identity. Trusting the prose verbatim has cost real session
+time (12-turn correction on `cache-insights-0to.4` when the navigator
+identified `rk8.1` as the §4.2 fork consumer; the actual consumer was
+`0to.7`).
+
+```text
+# CORRECT
+Subagent says: "Blocks: rk8.1 (§4.2 fork test)"
+→ run `bd show rk8.1` → confirm title contains "fork test"
+→ if mismatch, find the actual consumer (`bd list --title-contains "fork"`)
+→ THEN encode the dep
+
+# WRONG
+Subagent says: "Blocks: rk8.1 (§4.2 fork test)"
+→ encode "Blocks: rk8.1" into description + run `bd dep add rk8.1 0to.4`
+→ realize 6 turns later that rk8.1 is actually the §4.3 cost forecast
+→ remove + re-add the correct dep
+```
+
+**Reference implementation:** _none yet — this is a new standard from
+2026-04-30 retro. First implementer should embed the verification loop in
+the navigator-survey agent prompt._
+
+**Tracked in:** `enhancements.md` (2026-04-28 navigator-survey entry).
 
 ---
 
